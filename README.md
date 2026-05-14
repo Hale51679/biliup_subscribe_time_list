@@ -8,7 +8,7 @@
 
 直接从 Release 下载即开即用：
 
-<a href="https://github.com/Hale51679/biliup_subscribe_time_list/releases/download/v2.0/B.exe" target="_blank">⬇️ 下载 v2.0 (B.exe)</a>
+[⬇️ 下载 v2.0 (B.exe)](https://github.com/Hale51679/biliup_subscribe_time_list/releases/download/v2.0/B.exe)
 
 > 无需安装 Python，下载后双击运行即可。如遇杀软误报请添加信任。
 
@@ -16,7 +16,7 @@
 
 扫码登录即可使用，无需下载任何文件：
 
-<a href="https://biliup-subscribe-timelist.streamlit.app/" target="_blank">🌐 在线使用</a> — 绑定本仓库部署
+[🌐 在线使用](https://biliup-subscribe-timelist.streamlit.app/) — 绑定本仓库部署
 
 
 ### 方式三：本地运行源码
