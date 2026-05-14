@@ -91,6 +91,11 @@ textarea { resize: vertical; min-height: 60px; }
     <div class="card">
       <div class="card-title">扫码登录</div>
       <div class="card-sub">用 B站 App 扫码，自动获取 SESSDATA 和 UID</div>
+
+      <label>当前 SESSDATA（必填）</label>
+      <input type="text" id="qrSessdataInput" placeholder="从浏览器 F12 Application Cookies 复制" autocomplete="off">
+      <div class="hint">B站风控拦截 Cloudflare IP，填入已登录的 SESSDATA 可通过验证</div>
+
       <div class="qr-wrap"><div id="qrcode"></div></div>
       <div id="qrStatus" class="status"></div>
       <div id="qrActions">
@@ -98,7 +103,7 @@ textarea { resize: vertical; min-height: 60px; }
       </div>
       <div id="qrResult" class="hidden">
         <div style="margin-top:8px;">
-          <div style="font-size:12px;color:#8e9aaf;">SESSDATA</div>
+          <div style="font-size:12px;color:#8e9aaf;">新 SESSDATA</div>
           <div id="qrSessdata" class="sessdata-box"></div>
         </div>
         <div style="margin-top:6px;font-size:12px;" id="qrUid"></div>
@@ -176,10 +181,12 @@ function switchTab(name, btn) {
 var qrPollTimer = null
 async function startQRLogin() {
   var btn = document.getElementById('qrBtn'); btn.disabled = true; btn.textContent = '生成中...'
+  var sd = document.getElementById('qrSessdataInput').value.trim()
+  if (!sd) { setStatus('qrStatus', 'error', '请先填写当前 SESSDATA'); btn.textContent = '生成二维码'; btn.disabled = false; return }
   setStatus('qrStatus', 'info', '正在请求二维码...')
   document.getElementById('qrResult').classList.add('hidden'); clearEl('qrLog'); document.getElementById('qrcode').innerHTML = ''
   try {
-    var resp = await api('GET', 'https://passport.bilibili.com/x/passport-login/web/qrcode/generate?source=main-fe-header')
+    var resp = await api('GET', 'https://passport.bilibili.com/x/passport-login/web/qrcode/generate?source=main-fe-header', 'SESSDATA=' + sd)
     if (resp.code !== 0) throw new Error(resp.message || '生成二维码失败')
     // 用 img 标签显示二维码（无需第三方库）
     var qrImg = document.createElement('img')
@@ -190,17 +197,17 @@ async function startQRLogin() {
     qrImg.onerror = function() { logEl('qrLog', 'QR码图片加载失败，但可继续扫码'); console.error('QR image failed') }
     document.getElementById('qrcode').appendChild(qrImg)
     setStatus('qrStatus', 'info', '请打开B站App扫描二维码'); btn.textContent = '重新生成'; btn.disabled = false
-    logEl('qrLog', '二维码已生成'); logEl('qrLog', '请打开B站App扫码'); startQrPoll(resp.data.qrcode_key)
+    logEl('qrLog', '二维码已生成'); logEl('qrLog', '请打开B站App扫码'); startQrPoll(resp.data.qrcode_key, sd)
   } catch(e) { setStatus('qrStatus', 'error', '失败: ' + e.message); btn.textContent = '生成二维码'; btn.disabled = false }
 }
-async function startQrPoll(key) {
+async function startQrPoll(key, sessdata) {
   if (qrPollTimer) { clearInterval(qrPollTimer); qrPollTimer = null }
   var elapsed = 0
   qrPollTimer = setInterval(async function() {
     elapsed += 2
     if (elapsed > 180) { clearInterval(qrPollTimer); qrPollTimer = null; setStatus('qrStatus', 'error', '扫码超时，请重新生成'); return }
     try {
-      var resp = await api('GET', 'https://passport.bilibili.com/x/passport-login/web/qrcode/poll?qrcode_key=' + key)
+      var resp = await api('GET', 'https://passport.bilibili.com/x/passport-login/web/qrcode/poll?qrcode_key=' + key, 'SESSDATA=' + sessdata)
       var c = resp.data && resp.data.code
       if (c === 0) {
         clearInterval(qrPollTimer); qrPollTimer = null
@@ -208,6 +215,7 @@ async function startQrPoll(key) {
         if (!s) { setStatus('qrStatus', 'error', '获取 SESSDATA 失败，请手动填写'); return }
         logEl('qrLog', '登录成功！')
         document.getElementById('qrSessdata').textContent = s; document.getElementById('qrResult').classList.remove('hidden')
+        document.getElementById('qrSessdataInput').value = s
         document.getElementById('batchSessdata').value = s; document.getElementById('singleSessdata').value = s
         try {
           var n = await api('GET', 'https://api.bilibili.com/x/web-interface/nav', 'SESSDATA=' + s)
