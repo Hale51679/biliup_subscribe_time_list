@@ -289,6 +289,7 @@ if tab == "📱 扫码登录":
                 st.session_state.current_tab = "📋 批量导出"
                 st.balloons()
                 st.success("✅ 扫码登录成功！")
+                time.sleep(1)
                 st.rerun()
             elif result["status"] == "scanned":
                 st.info("📱 已扫码，请在手机上确认登录...")
