@@ -43,10 +43,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Session State 初始化 ──────────────────────────────────────────────
-for key in ("sessdata", "uid", "qrcode_key", "qr_url", "qr_generated"):
+for key in ("sessdata", "uid", "qrcode_key", "qr_url", "qr_generated", "active_tab"):
     if key not in st.session_state:
         if key in ("qr_generated",):
             st.session_state[key] = False
+        elif key == "active_tab":
+            st.session_state[key] = "📱 扫码登录"
         else:
             st.session_state[key] = "" if key in ("sessdata", "uid") else None
 
