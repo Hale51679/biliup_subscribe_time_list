@@ -16,7 +16,7 @@
 
 扫码登录即可使用，无需下载任何文件：
 
-[🌐 在线使用](https://share.streamlit.io) — 绑定本仓库部署
+[🌐 在线使用](https://biliup-subscribe-timelist.streamlit.app/) — 绑定本仓库部署
 
 
 ### 方式三：本地运行源码
