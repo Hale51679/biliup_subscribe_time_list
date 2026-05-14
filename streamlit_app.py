@@ -225,6 +225,11 @@ st.markdown("""
     <p style="color:#8E9AAF; font-size:0.9rem; margin:0.25rem 0 0 0;">
         批量导出UP主名称、UID与关注时间
     </p>
+    <p style="margin:0.5rem 0 0 0;">
+        <a href="https://github.com/Hale51679/biliup_subscribe_time_list" target="_blank" style="color:#8E9AAF; font-size:0.8rem; text-decoration:none;">
+            📂 GitHub 仓库
+        </a>
+    </p>
 </div>
 """, unsafe_allow_html=True)
 
