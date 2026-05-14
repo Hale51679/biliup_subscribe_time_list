@@ -14,7 +14,7 @@ const HTML_PAGE = `<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>B站关注列表导出工具</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<!-- QR码用 img 标签 + qrserver API 生成，不需要 JS 库 -->
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, "Microsoft YaHei", sans-serif; background: #f4f5f7; color: #1f2a3a; min-height: 100vh; }
@@ -181,7 +181,14 @@ async function startQRLogin() {
   try {
     var resp = await api('GET', 'https://passport.bilibili.com/x/passport-login/web/qrcode/generate?source=main-fe-header')
     if (resp.code !== 0) throw new Error(resp.message || '生成二维码失败')
-    new QRCode(document.getElementById('qrcode'), { text: resp.data.url, width: 180, height: 180, correctLevel: QRCode.CorrectLevel.H })
+    // 用 img 标签显示二维码（无需第三方库）
+    var qrImg = document.createElement('img')
+    qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(resp.data.url)
+    qrImg.alt = 'QR Code'
+    qrImg.width = 180
+    qrImg.height = 180
+    qrImg.onerror = function() { logEl('qrLog', 'QR码图片加载失败，但可继续扫码'); console.error('QR image failed') }
+    document.getElementById('qrcode').appendChild(qrImg)
     setStatus('qrStatus', 'info', '请打开B站App扫描二维码'); btn.textContent = '重新生成'; btn.disabled = false
     logEl('qrLog', '二维码已生成'); logEl('qrLog', '请打开B站App扫码'); startQrPoll(resp.data.qrcode_key)
   } catch(e) { setStatus('qrStatus', 'error', '失败: ' + e.message); btn.textContent = '生成二维码'; btn.disabled = false }
