@@ -1,0 +1,5 @@
+streamlit>=1.28
+requests
+openpyxl
+Pillow
+qrcode[pil]
