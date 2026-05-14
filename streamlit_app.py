@@ -237,17 +237,17 @@ if st.session_state.sessdata:
     )
 
 # ── Tab 页面 ──────────────────────────────────────────────────────────
-def _switch_tab():
-    st.session_state.current_tab = st.session_state._radio_tab
-
-st.radio(
-    "",
-    ["📱 扫码登录", "📋 批量导出", "🔍 单个查询"],
-    horizontal=True,
-    label_visibility="collapsed",
-    key="_radio_tab",
-    on_change=_switch_tab,
-)
+cols = st.columns(3)
+tabs = ["📱 扫码登录", "📋 批量导出", "🔍 单个查询"]
+for i, (col, label) in enumerate(zip(cols, tabs)):
+    with col:
+        if st.button(
+            label,
+            use_container_width=True,
+            type="primary" if st.session_state.current_tab == label else "secondary",
+            key=f"tab_{i}",
+        ):
+            st.session_state.current_tab = label
 tab = st.session_state.current_tab
 
 # ═══════════════════════════════ Tab 1: 扫码登录 ═══════════════════════
@@ -283,7 +283,6 @@ if tab == "📱 扫码登录":
                 st.session_state.sessdata = sessdata
                 st.session_state.qr_generated = False
                 st.session_state.current_tab = "📋 批量导出"
-                st.session_state._radio_tab = "📋 批量导出"
                 st.balloons()
                 st.success("✅ 扫码登录成功！")
 
