@@ -235,11 +235,17 @@ if st.session_state.sessdata:
     )
 
 # ── Tab 页面 ──────────────────────────────────────────────────────────
-tab_qr, tab_batch, tab_single = st.tabs(["📱 扫码登录", "📋 批量导出", "🔍 单个查询"])
+tab = st.radio(
+    "",
+    ["📱 扫码登录", "📋 批量导出", "🔍 单个查询"],
+    horizontal=True,
+    label_visibility="collapsed",
+    key="active_tab",
+)
 
 # ═══════════════════════════════ Tab 1: 扫码登录 ═══════════════════════
 
-with tab_qr:
+if tab == "📱 扫码登录":
     st.markdown("##### 扫码登录获取 SESSDATA")
 
     if st.button("🔲 生成二维码", use_container_width=True, type="primary"):
@@ -305,7 +311,7 @@ with tab_qr:
 
 # ═══════════════════════════════ Tab 2: 批量导出 ═══════════════════════
 
-with tab_batch:
+elif tab == "📋 批量导出":
     st.markdown("##### 批量导出关注列表")
 
     col1, col2 = st.columns(2)
@@ -375,7 +381,7 @@ with tab_batch:
 
 # ═══════════════════════════════ Tab 3: 单个查询 ═══════════════════════
 
-with tab_single:
+elif tab == "🔍 单个查询":
     st.markdown("##### 查询是否关注某个UP主")
 
     sessdata_single = st.text_input("SESSDATA", value=st.session_state.sessdata,
