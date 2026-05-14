@@ -8,7 +8,7 @@
 
 直接从 Release 下载即开即用：
 
-[⬇️ 下载 v2.0 (B.exe)](https://github.com/Hale51679/biliup_subscribe_time_list/releases/download/v2.0/B.exe)
+[⬇️ 下载 v2.1 (B.exe)](https://github.com/Hale51679/biliup_subscribe_time_list/releases/download/v2.1/B.exe)
 
 > 无需安装 Python，下载后双击运行即可。如遇杀软误报请添加信任。
 
@@ -50,6 +50,23 @@ python bilibili_gui.py            # GUI 版
 - **后端** — Python + Requests
 - **登录** — B站 OAuth 扫码登录
 - **导出** — openpyxl
+
+## 📋 更新日志
+
+### v2.1 (2026-05-14)
+
+- **扫码登录优化** — 登录成功后等待 2 秒，自动切换到批量导出页面
+- **在线版修复** — 修复 Streamlit 切换 tab 后页面跳转的问题
+
+### v2.0 (2026-05-14)
+
+- **扫码登录** — 工具内直接生成二维码，B站 App 扫码即登，无需手动填 Cookie
+- **UI 全新升级** — 更现代的配色、卡片式布局
+- **自动获取 UID** — 扫码后自动填入 UID
+
+### v1.0 (2026-03-06)
+
+- 初始版本，支持手动填写 SESSDATA 导出关注列表
 
 ## 📝 免责声明
 

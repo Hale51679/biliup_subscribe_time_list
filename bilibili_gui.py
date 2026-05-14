@@ -315,6 +315,7 @@ class App(tk.Tk):
 
         nb = ttk.Notebook(self)
         nb.pack(fill="both", expand=True, padx=0)
+        self.nb = nb
 
         tab_qr     = tk.Frame(nb, bg=BG)
         tab_batch  = tk.Frame(nb, bg=BG)
@@ -599,6 +600,11 @@ class App(tk.Tk):
             parts.append("和 UID")
         parts.append("，以及「单个查询」的 SESSDATA")
         self.qr_targets_var.set("✅ " + "".join(parts))
+        # 2秒后自动切换到批量导出
+        self.after(2000, self._switch_to_batch)
+
+    def _switch_to_batch(self):
+        self.nb.select(1)
 
     def _stop_qr(self):
         self.qr_polling = False
