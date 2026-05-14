@@ -275,6 +275,7 @@ if tab == "📱 扫码登录":
                 sessdata = result["sessdata"]
                 st.session_state.sessdata = sessdata
                 st.session_state.qr_generated = False
+                st.session_state.active_tab = "📋 批量导出"
                 st.balloons()
                 st.success("✅ 扫码登录成功！")
 
