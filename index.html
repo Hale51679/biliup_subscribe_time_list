@@ -73,9 +73,9 @@ textarea { resize: vertical; min-height: 60px; }
 
 <div class="container">
   <div class="tabs">
-    <button class="tab-btn active" onclick="switchTab('qr')">📱 扫码登录</button>
-    <button class="tab-btn" onclick="switchTab('batch')">📋 批量导出</button>
-    <button class="tab-btn" onclick="switchTab('single')">🔍 单个查询</button>
+    <button class="tab-btn active" onclick="switchTab('qr', this)">📱 扫码登录</button>
+    <button class="tab-btn" onclick="switchTab('batch', this)">📋 批量导出</button>
+    <button class="tab-btn" onclick="switchTab('single', this)">🔍 单个查询</button>
   </div>
 
   <!-- ════════ Tab 1: 扫码登录 ════════ -->
@@ -168,10 +168,11 @@ async function api(method, biliUrl, cookie) {
   params.set('url', biliUrl)
   if (cookie) params.set('cookie', cookie)
 
-  const resp = await fetch(`${PROXY_URL}/?${params.toString()}`, {
-    method: method,
-    headers: { 'Content-Type': 'application/json' },
-  })
+  const opts = { method }
+  // 只有 POST 才需要 Content-Type 头，避免 GET 触发 CORS 预检
+  if (method !== 'GET') opts.headers = { 'Content-Type': 'application/json' }
+
+  const resp = await fetch(`${PROXY_URL}/?${params.toString()}`, opts)
   if (!resp.ok) {
     const text = await resp.text()
     throw new Error(`请求失败 (${resp.status}): ${text.slice(0, 100)}`)
@@ -199,11 +200,11 @@ function clearEl(id) {
   el.classList.add('hidden')
 }
 
-function switchTab(name) {
+function switchTab(name, btn) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'))
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'))
   document.getElementById('tab' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('active')
-  event.target.classList.add('active')
+  btn.classList.add('active')
 }
 
 // ══ Tab 1: 扫码登录 ═══════════════════════════════════════
