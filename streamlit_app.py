@@ -282,16 +282,14 @@ if tab == "📱 扫码登录":
                 sessdata = result["sessdata"]
                 st.session_state.sessdata = sessdata
                 st.session_state.qr_generated = False
+                # 获取 UID（在 rerun 前执行）
+                uid = get_my_uid(sessdata)
+                if uid:
+                    st.session_state.uid = str(uid)
                 st.session_state.current_tab = "📋 批量导出"
                 st.balloons()
                 st.success("✅ 扫码登录成功！")
-
-                # 获取 UID
-                with st.spinner("正在获取用户信息..."):
-                    uid = get_my_uid(sessdata)
-                    if uid:
-                        st.session_state.uid = str(uid)
-                        st.info(f"👤 UID: {uid}")
+                st.rerun()
             elif result["status"] == "scanned":
                 st.info("📱 已扫码，请在手机上确认登录...")
             elif result["status"] == "expired":
