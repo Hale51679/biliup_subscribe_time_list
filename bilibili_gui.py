@@ -23,11 +23,21 @@ import time
 import datetime
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from PIL import Image, ImageTk
+import qrcode
 
-BLUE  = "#00A1D6"
-BLUE2 = "#0095C5"
-BG    = "#f5f5f5"
-WHITE = "#ffffff"
+# ── 配色方案 ──
+PRIMARY    = "#00A1D6"
+PRIMARY_DK = "#0085B3"
+PRIMARY_LT = "#F0F9FF"
+BG         = "#F4F5F7"
+CARD       = "#FFFFFF"
+TEXT       = "#1F2A3A"
+TEXT_SUB   = "#8E9AAF"
+BORDER     = "#E8ECF1"
+DANGER     = "#F25D8E"
+SUCCESS    = "#00A1D6"
+WHITE      = "#FFFFFF"
 
 # ───────────────────────────── 爬虫核心逻辑 ─────────────────────────────
 
@@ -144,6 +154,64 @@ def export_to_excel(data, filename):
     ws.freeze_panes = "A2"
     wb.save(filename)
 
+# ───────────────────────────── 扫码登录 ─────────────────────────────
+
+QR_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Referer": "https://www.bilibili.com/",
+    "Origin": "https://www.bilibili.com",
+}
+
+def qr_generate():
+    resp = requests.get(
+        "https://passport.bilibili.com/x/passport-login/web/qrcode/generate?source=main-fe-header",
+        headers=QR_HEADERS, timeout=10
+    )
+    data = resp.json()
+    if data.get("code") != 0:
+        raise Exception(f"生成二维码失败: {data.get('message')}")
+    return data["data"]["qrcode_key"], data["data"]["url"]
+
+def qr_poll(qrcode_key):
+    resp = requests.get(
+        f"https://passport.bilibili.com/x/passport-login/web/qrcode/poll?qrcode_key={qrcode_key}",
+        headers=QR_HEADERS, timeout=10
+    )
+    data = resp.json()
+    # 顶层 code 始终为 0，实际状态在 data.data.code 中
+    inner_code = data.get("data", {}).get("code", -1)
+    if inner_code == 0:
+        # 登录成功！从 cookie 中提取 SESSDATA
+        sessdata = resp.cookies.get("SESSDATA", "")
+        if not sessdata:
+            # 兜底：手动从 Set-Cookie 解析
+            for cookie in resp.raw.headers.getlist("Set-Cookie"):
+                if cookie.strip().startswith("SESSDATA="):
+                    sessdata = cookie.split("SESSDATA=")[1].split(";")[0]
+                    break
+        return {"status": "ok", "sessdata": sessdata, "data": data}
+    elif inner_code == 86038:
+        return {"status": "expired"}
+    elif inner_code == 86090:
+        return {"status": "scanned"}
+    else:
+        return {"status": "waiting"}
+
+def get_my_uid(sessdata):
+    """用 SESSDATA 查询当前登录用户的 UID"""
+    headers = {
+        **QR_HEADERS,
+        "Cookie": f"SESSDATA={sessdata}",
+    }
+    resp = requests.get(
+        "https://api.bilibili.com/x/web-interface/nav",
+        headers=headers, timeout=10
+    )
+    data = resp.json()
+    if data.get("code") == 0:
+        return data["data"].get("mid")
+    return None
+
 # ───────────────────────────── GUI ─────────────────────────────
 
 class App(tk.Tk):
@@ -171,155 +239,242 @@ class App(tk.Tk):
 
     def _entry(self, parent, textvariable=None, show=None):
         kw = dict(font=("Consolas", 10), relief="flat", bg=WHITE,
-                  highlightthickness=1, highlightbackground="#cccccc", highlightcolor=BLUE)
+                  highlightthickness=1, highlightbackground=BORDER, highlightcolor=PRIMARY,
+                  insertbackground=TEXT, selectbackground=PRIMARY_LT, selectforeground=TEXT)
         if textvariable: kw["textvariable"] = textvariable
         if show: kw["show"] = show
         return tk.Entry(parent, **kw)
 
     def _text_box(self, parent, height=3):
         return tk.Text(parent, height=height, font=("Consolas", 10), relief="flat",
-                       bg=WHITE, highlightthickness=1, highlightbackground="#cccccc",
-                       highlightcolor=BLUE, wrap="word")
+                       bg=WHITE, highlightthickness=1, highlightbackground=BORDER,
+                       highlightcolor=PRIMARY, wrap="word", insertbackground=TEXT)
 
-    def _btn(self, parent, text, command, small=False):
-        b = tk.Button(parent, text=text,
+    def _btn(self, parent, text, command, small=False, secondary=False):
+        bg = WHITE if secondary else PRIMARY
+        fg = PRIMARY if secondary else WHITE
+        active_bg = BORDER if secondary else PRIMARY_DK
+        active_fg = PRIMARY_DK if secondary else WHITE
+        padx = 18 if small else 28
+        pady = 4 if small else 6
+        b = tk.Button(parent, text=text, padx=padx, pady=pady,
                       font=("微软雅黑", 9 if small else 11, "bold"),
-                      bg=BLUE, fg=WHITE, relief="flat", cursor="hand2",
-                      activebackground=BLUE2, activeforeground=WHITE, command=command)
-        b.bind("<Enter>", lambda e: b.configure(bg=BLUE2))
-        b.bind("<Leave>", lambda e: b.configure(bg=BLUE))
+                      bg=bg, fg=fg, relief="flat", cursor="hand2",
+                      activebackground=active_bg, activeforeground=active_fg,
+                      highlightthickness=1, highlightbackground=bg, bd=0, command=command)
+        b.bind("<Enter>", lambda e: b.configure(bg=PRIMARY_LT if secondary else PRIMARY_DK))
+        b.bind("<Leave>", lambda e: b.configure(bg=bg))
         return b
 
-    def _log_widget(self, parent):
+    def _card(self, parent, **kw):
+        return tk.Frame(parent, bg=CARD, highlightthickness=1, highlightbackground=BORDER, **kw)
+
+    def _log_widget(self, parent, height=6):
         frame = tk.Frame(parent, bg=BG)
-        box = tk.Text(frame, font=("Consolas", 9), bg="#1e1e1e", fg="#d4d4d4",
-                      relief="flat", state="disabled", wrap="word")
-        scroll = tk.Scrollbar(frame, command=box.yview)
+        box = tk.Text(frame, height=height, font=("Consolas", 9), bg="#1A1D23", fg="#CCCCCC",
+                      relief="flat", state="disabled", wrap="word",
+                      insertbackground="#CCCCCC", padx=8, pady=6)
+        scroll = tk.Scrollbar(frame, command=box.yview, bg="#2A2D33", troughcolor="#1A1D23",
+                              activebackground="#555", relief="flat", bd=0)
         box.configure(yscrollcommand=scroll.set)
         box.pack(side="left", fill="both", expand=True)
         scroll.pack(side="right", fill="y")
         return frame, box
 
+    def _section_label(self, parent, text):
+        return tk.Label(parent, text=text, font=("微软雅黑", 10, "bold"), bg=BG, fg=TEXT, anchor="w")
+
     def _build_ui(self):
         self.configure(bg=BG)
 
-        # 标题
-        title_frame = tk.Frame(self, bg=BLUE, pady=14)
+        # 标题头
+        title_frame = tk.Frame(self, bg=PRIMARY, pady=16)
         title_frame.pack(fill="x")
-        tk.Label(title_frame, text="B站关注列表导出工具",
-                 font=("微软雅黑", 16, "bold"), bg=BLUE, fg=WHITE).pack()
-        tk.Label(title_frame, text="导出你关注的UP主名称、UID与关注时间",
-                 font=("微软雅黑", 9), bg=BLUE, fg="#d0f0ff").pack()
+        tk.Label(title_frame, text="🎬 B站关注列表导出工具",
+                 font=("微软雅黑", 17, "bold"), bg=PRIMARY, fg=WHITE).pack()
+        tk.Label(title_frame, text="批量导出你关注的UP主名称、UID与关注时间",
+                 font=("微软雅黑", 9), bg=PRIMARY, fg="#CCE8F7").pack()
 
         # Tab样式
         style = ttk.Style()
         style.theme_use("default")
         style.configure("TNotebook", background=BG, borderwidth=0)
         style.configure("TNotebook.Tab", font=("微软雅黑", 10),
-                        padding=[16, 6], background="#e0e0e0", foreground="#555")
+                        padding=[18, 7], background="#DEE2E6", foreground=TEXT_SUB)
         style.map("TNotebook.Tab",
-                  background=[("selected", BLUE)],
-                  foreground=[("selected", WHITE)])
+                  background=[("selected", PRIMARY)],
+                  foreground=[("selected", WHITE)],
+                  lightcolor=[("selected", PRIMARY)])
+        style.layout("TNotebook.Tab", [
+            ("Notebook.tab", {"sticky": "nswe", "children":
+                [("Notebook.padding", {"side": "top", "sticky": "nswe", "children":
+                    [("Notebook.label", {"side": "top", "sticky": ""})]
+                })]
+            })
+        ])
 
         nb = ttk.Notebook(self)
-        nb.pack(fill="both", expand=True)
+        nb.pack(fill="both", expand=True, padx=0)
 
+        tab_qr     = tk.Frame(nb, bg=BG)
         tab_batch  = tk.Frame(nb, bg=BG)
         tab_single = tk.Frame(nb, bg=BG)
+        nb.add(tab_qr,     text="  扫码登录  ")
         nb.add(tab_batch,  text="  批量导出  ")
         nb.add(tab_single, text="  单个查询  ")
 
+        self._build_qr_tab(tab_qr)
         self._build_batch_tab(tab_batch)
         self._build_single_tab(tab_single)
 
-        tk.Label(self, text="💡 获取SESSDATA：浏览器登录B站 → F12 → Application → Cookies → bilibili.com → 复制SESSDATA值",
-                 font=("微软雅黑", 8), bg=BG, fg="#999", wraplength=500).pack(pady=(4, 8))
+    # ── 扫码登录 ────────────────────────────────────────────────────
 
-    # ── 批量导出 ──────────────────────────────────────────────────────
+    def _build_qr_tab(self, parent):
+        p = dict(padx=24)
+        container = tk.Frame(parent, bg=BG)
+        container.pack(fill="both", expand=True, **p)
+        tk.Frame(container, bg=BG, height=6).pack()
+
+        # 二维码显示区
+        qr_card = self._card(container, width=220, height=220)
+        qr_card.pack(pady=(0, 10))
+        qr_card.pack_propagate(False)
+        self.qr_label = tk.Label(qr_card, bg=CARD)
+        self.qr_label.pack(expand=True)
+        self.qr_placeholder = tk.Label(qr_card, text="点击下方按钮\n生成二维码",
+                                       font=("微软雅黑", 10), bg=CARD, fg=TEXT_SUB)
+        self.qr_placeholder.place(relx=0.5, rely=0.5, anchor="center")
+
+        # 状态提示
+        self.qr_status_var = tk.StringVar(value="就绪")
+        tk.Label(container, textvariable=self.qr_status_var,
+                 font=("微软雅黑", 9), bg=BG, fg=TEXT_SUB).pack()
+
+        # 按钮行
+        btn_frame = tk.Frame(container, bg=BG)
+        btn_frame.pack(pady=(8, 6))
+        self.qr_gen_btn = self._btn(btn_frame, "  生成二维码  ", self._start_qr)
+        self.qr_gen_btn.pack()
+
+        # 结果卡片
+        card = self._card(container)
+        card.pack(fill="x")
+        inner = tk.Frame(card, bg=CARD, padx=16, pady=10)
+        inner.pack(fill="x")
+
+        tk.Label(inner, text="SESSDATA", font=("微软雅黑", 8), bg=CARD, fg=TEXT_SUB).pack(anchor="w")
+        self.qr_sessdata_var = tk.StringVar(value="")
+        tk.Label(inner, textvariable=self.qr_sessdata_var,
+                 font=("Consolas", 10), bg=CARD, fg=TEXT,
+                 wraplength=440, justify="left").pack(anchor="w", fill="x")
+
+        tk.Frame(inner, bg=BORDER, height=1).pack(fill="x", pady=6)
+
+        tk.Label(inner, text="扫码后自动填入以下位置：", font=("微软雅黑", 8), bg=CARD, fg=TEXT_SUB).pack(anchor="w")
+        self.qr_targets_var = tk.StringVar(value="—")
+        tk.Label(inner, textvariable=self.qr_targets_var,
+                 font=("微软雅黑", 9), bg=CARD, fg=PRIMARY).pack(anchor="w")
+
+        log_frame, self.qr_log_box = self._log_widget(container, height=5)
+        log_frame.pack(fill="both", expand=True, pady=(10, 0))
+
+        self.qr_polling = False
+        self.qr_tk_image = None
 
     def _build_batch_tab(self, parent):
         p = dict(padx=24)
-        tk.Frame(parent, bg=BG, height=10).pack()
+        container = tk.Frame(parent, bg=BG)
+        container.pack(fill="both", expand=True, **p)
+        tk.Frame(container, bg=BG, height=4).pack()
 
-        tk.Label(parent, text="你的B站 UID", font=("微软雅黑", 10), bg=BG, anchor="w").pack(fill="x", **p)
+        # UID
+        self._section_label(container, "你的B站 UID").pack(fill="x")
         self.uid_var = tk.StringVar()
-        self._entry(parent, textvariable=self.uid_var).pack(fill="x", ipady=5, pady=(2,10), **p)
+        self._entry(container, textvariable=self.uid_var).pack(fill="x", ipady=5, pady=(4, 12))
 
-        tk.Label(parent, text="SESSDATA", font=("微软雅黑", 10), bg=BG, anchor="w").pack(fill="x", **p)
-        self.sessdata_text = self._text_box(parent, height=3)
-        self.sessdata_text.pack(fill="x", pady=(2,10), **p)
+        # SESSDATA
+        self._section_label(container, "SESSDATA").pack(fill="x")
+        self.sessdata_text = self._text_box(container, height=3)
+        self.sessdata_text.pack(fill="x", pady=(4, 12))
 
-        tk.Label(parent, text="导出路径", font=("微软雅黑", 10), bg=BG, anchor="w").pack(fill="x", **p)
-        pf = tk.Frame(parent, bg=BG)
-        pf.pack(fill="x", pady=(2,10), **p)
+        # 导出路径
+        self._section_label(container, "导出路径").pack(fill="x")
+        pf = tk.Frame(container, bg=BG)
+        pf.pack(fill="x", pady=(4, 10))
         self.path_var = tk.StringVar(value="b站关注列表.xlsx")
         self._entry(pf, textvariable=self.path_var).pack(side="left", fill="x", expand=True, ipady=5)
-        self._btn(pf, " 浏览 ", self._browse, small=True).pack(side="left", padx=(6,0), ipady=4)
+        self._btn(pf, "浏览", self._browse, small=True, secondary=True).pack(side="left", padx=(6, 0))
 
-        self.b_progress = ttk.Progressbar(parent, mode="determinate")
-        self.b_progress.pack(fill="x", pady=(4,2), **p)
+        # 进度
+        self.b_progress = ttk.Progressbar(container, mode="determinate")
+        self.b_progress.pack(fill="x")
         self.b_status_var = tk.StringVar(value="就绪")
-        tk.Label(parent, textvariable=self.b_status_var,
-                 font=("微软雅黑", 9), bg=BG, fg="#666").pack(anchor="w", **p)
+        tk.Label(container, textvariable=self.b_status_var,
+                 font=("微软雅黑", 9), bg=BG, fg=TEXT_SUB).pack(anchor="w", pady=(2, 0))
 
-        log_frame, self.b_log_box = self._log_widget(parent)
-        log_frame.pack(fill="both", expand=True, pady=(6,0), **p)
+        log_frame, self.b_log_box = self._log_widget(container, height=5)
+        log_frame.pack(fill="both", expand=True, pady=(8, 0))
 
-        self.run_btn = self._btn(parent, "  开始导出  ", self._start_batch)
-        self.run_btn.pack(pady=14)
+        self.run_btn = self._btn(container, "  开始导出  ", self._start_batch)
+        self.run_btn.pack(pady=12)
 
     # ── 单个查询 ──────────────────────────────────────────────────────
 
     def _build_single_tab(self, parent):
         p = dict(padx=24)
-        tk.Frame(parent, bg=BG, height=10).pack()
+        container = tk.Frame(parent, bg=BG)
+        container.pack(fill="both", expand=True, **p)
+        tk.Frame(container, bg=BG, height=4).pack()
 
-        tk.Label(parent, text="SESSDATA", font=("微软雅黑", 10), bg=BG, anchor="w").pack(fill="x", **p)
-        self.s_sessdata_text = self._text_box(parent, height=3)
-        self.s_sessdata_text.pack(fill="x", pady=(2,10), **p)
+        # SESSDATA
+        self._section_label(container, "SESSDATA").pack(fill="x")
+        self.s_sessdata_text = self._text_box(container, height=3)
+        self.s_sessdata_text.pack(fill="x", pady=(4, 10))
 
-        tk.Label(parent, text="UP主 UID（输入后按回车或点击查询）",
-                 font=("微软雅黑", 10), bg=BG, anchor="w").pack(fill="x", **p)
-        qf = tk.Frame(parent, bg=BG)
-        qf.pack(fill="x", pady=(2,10), **p)
+        # UP主UID + 查询按钮
+        qf = tk.Frame(container, bg=BG)
+        qf.pack(fill="x", pady=(0, 10))
+        tk.Label(qf, text="UP主 UID", font=("微软雅黑", 10, "bold"),
+                 bg=BG, fg=TEXT).pack(anchor="w")
+        ef = tk.Frame(qf, bg=BG)
+        ef.pack(fill="x", pady=(4, 0))
         self.query_var = tk.StringVar()
-        qe = self._entry(qf, textvariable=self.query_var)
+        qe = self._entry(ef, textvariable=self.query_var)
         qe.pack(side="left", fill="x", expand=True, ipady=5)
         qe.bind("<Return>", lambda e: self._start_single())
-        self._btn(qf, " 查询 ", self._start_single, small=True).pack(side="left", padx=(6,0), ipady=4)
+        self._btn(ef, "查询", self._start_single, small=True).pack(side="left", padx=(6, 0))
 
         # 结果卡片
-        card = tk.Frame(parent, bg=WHITE, highlightthickness=1, highlightbackground="#e0e0e0")
-        card.pack(fill="x", **p)
-        inner = tk.Frame(card, bg=WHITE, padx=16, pady=14)
+        card = self._card(container)
+        card.pack(fill="x")
+        inner = tk.Frame(card, bg=CARD, padx=16, pady=14)
         inner.pack(fill="x")
 
-        def card_col(row_frame, label, var, col, is_status=False):
-            f = tk.Frame(row_frame, bg=WHITE)
-            f.grid(row=0, column=col, sticky="w", padx=(0,40))
-            tk.Label(f, text=label, font=("微软雅黑", 9), bg=WHITE, fg="#999").pack(anchor="w")
-            lbl = tk.Label(f, textvariable=var, font=("微软雅黑", 12, "bold"), bg=WHITE, fg="#222")
+        def card_col(row_frame, label, var, col):
+            f = tk.Frame(row_frame, bg=CARD)
+            f.grid(row=0, column=col, sticky="w", padx=(0, 36))
+            tk.Label(f, text=label, font=("微软雅黑", 8), bg=CARD, fg=TEXT_SUB).pack(anchor="w")
+            lbl = tk.Label(f, textvariable=var, font=("微软雅黑", 13, "bold"), bg=CARD, fg=TEXT)
             lbl.pack(anchor="w")
             row_frame.columnconfigure(col, weight=1)
             return lbl
 
-        row1 = tk.Frame(inner, bg=WHITE); row1.pack(fill="x")
+        row1 = tk.Frame(inner, bg=CARD); row1.pack(fill="x")
         self.s_name_var = tk.StringVar(value="—")
         self.s_uid_var  = tk.StringVar(value="—")
         card_col(row1, "UP主名称", self.s_name_var, 0)
         card_col(row1, "UID",     self.s_uid_var,  1)
 
-        tk.Frame(inner, bg="#eeeeee", height=1).pack(fill="x", pady=10)
+        tk.Frame(inner, bg=BORDER, height=1).pack(fill="x", pady=8)
 
-        row2 = tk.Frame(inner, bg=WHITE); row2.pack(fill="x")
+        row2 = tk.Frame(inner, bg=CARD); row2.pack(fill="x")
         self.s_status_var = tk.StringVar(value="—")
         self.s_time_var   = tk.StringVar(value="—")
         self.s_status_lbl = card_col(row2, "关注状态", self.s_status_var, 0)
         card_col(row2, "关注时间", self.s_time_var, 1)
 
-        log_frame, self.s_log_box = self._log_widget(parent)
-        log_frame.pack(fill="both", expand=True, pady=(12,0), **p)
-        tk.Frame(parent, bg=BG, height=14).pack()
+        log_frame, self.s_log_box = self._log_widget(container, height=6)
+        log_frame.pack(fill="both", expand=True, pady=(10, 0))
 
     # ── 通用工具 ──────────────────────────────────────────────────────
 
@@ -340,6 +495,113 @@ class App(tk.Tk):
         box.configure(state="normal")
         box.delete("1.0", "end")
         box.configure(state="disabled")
+
+    # ── 扫码登录线程 ────────────────────────────────────────────────
+
+    def _start_qr(self):
+        self.qr_gen_btn.configure(state="disabled", text="  生成中...  ")
+        self.qr_status_var.set("正在请求二维码...")
+        self._clear_log(self.qr_log_box)
+        self.qr_sessdata_var.set("")
+        self.qr_targets_var.set("—")
+        # 清除旧二维码
+        self.qr_label.config(image="")
+        self.qr_label.image = None
+        self.qr_tk_image = None
+        self.qr_placeholder.place(relx=0.5, rely=0.5, anchor="center")
+        threading.Thread(target=self._run_qr_generate, daemon=True).start()
+
+    def _run_qr_generate(self):
+        log = lambda m: self._log(self.qr_log_box, m)
+        try:
+            log("📱 正在向B站请求二维码...")
+            qrcode_key, url = qr_generate()
+            log(f"✅ 二维码已生成")
+            log(f"🔑 qrcode_key: {qrcode_key}")
+            log("💡 请打开B站App扫描二维码")
+            self.qr_status_var.set("请打开B站App扫码")
+            self.after(0, self._show_qr_image, url)
+            self.qr_polling = True
+            self.qr_gen_btn.configure(text="  重新生成  ", state="normal")
+            self._run_qr_poll(qrcode_key, log)
+        except Exception as e:
+            log(f"❌ 生成二维码失败: {e}")
+            self.qr_status_var.set("生成失败")
+            self.qr_gen_btn.configure(state="normal", text="  重新生成  ")
+
+    def _show_qr_image(self, url):
+        # 移除占位文字
+        self.qr_placeholder.place_forget()
+        # 生成二维码 PIL Image
+        pil_img = qrcode.make(url, box_size=6).convert("RGB")
+        # 加白边
+        w, h = pil_img.size
+        padded = Image.new("RGB", (w + 20, h + 20), "white")
+        padded.paste(pil_img, (10, 10, w + 10, h + 10))
+        # 缩放到 200x200 显示
+        padded = padded.resize((200, 200), Image.NEAREST)
+        self.qr_tk_image = ImageTk.PhotoImage(padded)
+        self.qr_label.config(image=self.qr_tk_image)
+
+    def _run_qr_poll(self, qrcode_key, log):
+        timeout = 180
+        start = time.time()
+        while self.qr_polling and (time.time() - start) < timeout:
+            try:
+                result = qr_poll(qrcode_key)
+                if result["status"] == "ok":
+                    sessdata = result["sessdata"]
+                    log(f"\n🎉 扫码登录成功！")
+                    # 获取 UID
+                    uid = get_my_uid(sessdata)
+                    if uid:
+                        log(f"👤 UID: {uid}")
+                    else:
+                        log("⚠️ 未能获取 UID，请手动填写")
+                    # 自动填入其他Tab
+                    self.after(0, self._fill_login_info, sessdata, uid)
+                    self.qr_polling = False
+                    return
+                elif result["status"] == "scanned":
+                    self.qr_status_var.set("已扫码，请在手机上确认...")
+                    log("📱 已扫码，等待确认...")
+                elif result["status"] == "expired":
+                    log("⏰ 二维码已过期，请点击「重新生成」")
+                    self.qr_status_var.set("二维码已过期")
+                    self.qr_polling = False
+                    return
+                # else: waiting, continue polling
+                time.sleep(1.5)
+            except Exception as e:
+                log(f"⚠️ 轮询异常: {e}")
+                time.sleep(2)
+
+        if self.qr_polling:
+            log("⏰ 扫码超时，请重新生成二维码")
+            self.qr_status_var.set("扫码超时")
+            self.qr_polling = False
+
+    def _fill_login_info(self, sessdata, uid):
+        """将 SESSDATA 和 UID 自动填入其他Tab"""
+        # SESSDATA → 批量导出
+        self.sessdata_text.delete("1.0", "end")
+        self.sessdata_text.insert("1.0", sessdata)
+        # SESSDATA → 单个查询
+        self.s_sessdata_text.delete("1.0", "end")
+        self.s_sessdata_text.insert("1.0", sessdata)
+        # UID → 批量导出
+        if uid:
+            self.uid_var.set(str(uid))
+        self.qr_sessdata_var.set(sessdata)
+        self.qr_status_var.set("✅ 登录成功！")
+        parts = ["已填入「批量导出」的 SESSDATA"]
+        if uid:
+            parts.append("和 UID")
+        parts.append("，以及「单个查询」的 SESSDATA")
+        self.qr_targets_var.set("✅ " + "".join(parts))
+
+    def _stop_qr(self):
+        self.qr_polling = False
 
     # ── 批量导出线程 ──────────────────────────────────────────────────
 
