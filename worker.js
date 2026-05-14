@@ -301,6 +301,13 @@ async function handleRequest(request) {
         })
     }
 
+    // 诊断：/?ping=1
+    if (url.searchParams.has("ping")) {
+        return new Response(JSON.stringify({ ok: true, method: request.method, path: url.pathname }), {
+            headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" },
+        })
+    }
+
     // CORS 预检
     if (request.method === "OPTIONS") {
         return new Response(null, {
@@ -330,7 +337,8 @@ async function handleRequest(request) {
     }
 
     try {
-        const resp = await fetch(decodeURIComponent(target), { headers })
+        // 直接用 target（searchParams.get 已自动解码）
+        const resp = await fetch(target, { headers })
         const body = await resp.text()
 
         const contentType = resp.headers.get("content-type") || ""
@@ -370,9 +378,10 @@ async function handleRequest(request) {
                 }
             }
 
-            return new Response(body, { headers: responseHeaders })
+            // 透传上游状态码
+            return new Response(body, { status: resp.status, headers: responseHeaders })
         } else {
-            return new Response(body, { headers: { ...corsHeaders, "Content-Type": contentType || "text/plain" } })
+            return new Response(body, { status: resp.status, headers: { ...corsHeaders, "Content-Type": contentType || "text/plain" } })
         }
     } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), {
