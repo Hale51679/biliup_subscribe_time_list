@@ -43,11 +43,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Session State 初始化 ──────────────────────────────────────────────
-for key in ("sessdata", "uid", "qrcode_key", "qr_url", "qr_generated", "active_tab"):
+for key in ("sessdata", "uid", "qrcode_key", "qr_url", "qr_generated", "current_tab"):
     if key not in st.session_state:
         if key in ("qr_generated",):
             st.session_state[key] = False
-        elif key == "active_tab":
+        elif key == "current_tab":
             st.session_state[key] = "📱 扫码登录"
         else:
             st.session_state[key] = "" if key in ("sessdata", "uid") else None
@@ -237,13 +237,18 @@ if st.session_state.sessdata:
     )
 
 # ── Tab 页面 ──────────────────────────────────────────────────────────
-tab = st.radio(
+def _switch_tab():
+    st.session_state.current_tab = st.session_state._radio_tab
+
+st.radio(
     "",
     ["📱 扫码登录", "📋 批量导出", "🔍 单个查询"],
     horizontal=True,
     label_visibility="collapsed",
-    key="active_tab",
+    key="_radio_tab",
+    on_change=_switch_tab,
 )
+tab = st.session_state.current_tab
 
 # ═══════════════════════════════ Tab 1: 扫码登录 ═══════════════════════
 
@@ -277,7 +282,7 @@ if tab == "📱 扫码登录":
                 sessdata = result["sessdata"]
                 st.session_state.sessdata = sessdata
                 st.session_state.qr_generated = False
-                st.session_state.active_tab = "📋 批量导出"
+                st.session_state.current_tab = "📋 批量导出"
                 st.balloons()
                 st.success("✅ 扫码登录成功！")
 
