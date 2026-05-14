@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>B站关注列表导出工具</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, "Microsoft YaHei", sans-serif; background: #f4f5f7; color: #1f2a3a; min-height: 100vh; }
@@ -45,18 +46,23 @@ textarea { resize: vertical; min-height: 60px; }
 .mt-8 { margin-top: 8px; }
 .mt-12 { margin-top: 12px; }
 .flex { display: flex; gap: 8px; }
-.flex-1 { flex: 1; }
 .log-box { background: #1a1d23; color: #ccc; border-radius: 6px; padding: 10px; font-size: 12px;
-  font-family: "Consolas", monospace; height: 160px; overflow-y: auto; white-space: pre-wrap;
+  font-family: "Consolas", monospace; height: 140px; overflow-y: auto; white-space: pre-wrap;
   word-break: break-all; margin-top: 8px; }
 .progress-bar { height: 6px; background: #e8ecf1; border-radius: 3px; margin-top: 8px; overflow: hidden; }
 .progress-bar-inner { height: 100%; background: #00A1D6; border-radius: 3px; width: 0%; transition: width .3s; }
 .hint { font-size: 12px; color: #8e9aaf; margin-top: 4px; }
+.qr-wrap { display: flex; justify-content: center; padding: 16px 0 8px; }
+.qr-wrap #qrcode { padding: 12px; background: #fff; border: 1px solid #e8ecf1; border-radius: 8px; display: inline-block; }
+.qr-wrap #qrcode img, .qr-wrap #qrcode canvas { display: block; }
 .result-card { padding: 14px; border-radius: 8px; margin-top: 8px; }
 .result-card.following { background: #e8f7fd; border: 1px solid #b8daff; }
 .result-card.not-following { background: #fff3f3; border: 1px solid #f5c6cb; }
 .result-card h3 { margin: 0 0 4px 0; font-size: 15px; }
 .result-card p { margin: 2px 0; font-size: 13px; }
+.sessdata-box { background: #f0f8ff; border: 1px solid #b8daff; border-radius: 6px;
+  padding: 8px 10px; font-family: Consolas, monospace; font-size: 12px;
+  word-break: break-all; margin-top: 6px; }
 </style>
 </head>
 <body>
@@ -67,22 +73,49 @@ textarea { resize: vertical; min-height: 60px; }
 
 <div class="container">
   <div class="tabs">
-    <button class="tab-btn active" onclick="switchTab('batch')">📋 批量导出</button>
+    <button class="tab-btn active" onclick="switchTab('qr')">📱 扫码登录</button>
+    <button class="tab-btn" onclick="switchTab('batch')">📋 批量导出</button>
     <button class="tab-btn" onclick="switchTab('single')">🔍 单个查询</button>
   </div>
 
-  <!-- ════════ Tab: 批量导出 ════════ -->
-  <div id="tabBatch" class="tab-content active">
+  <!-- ════════ Tab 1: 扫码登录 ════════ -->
+  <div id="tabQr" class="tab-content active">
+    <div class="card">
+      <div class="card-title">📱 扫码登录</div>
+      <div class="card-sub">用 B站 App 扫码，自动获取 SESSDATA 和 UID</div>
+
+      <div class="qr-wrap"><div id="qrcode"></div></div>
+
+      <div id="qrStatus" class="status"></div>
+      <div id="qrActions">
+        <button class="btn btn-primary" onclick="startQRLogin()" id="qrBtn">🔲 生成二维码</button>
+      </div>
+
+      <div id="qrResult" class="hidden">
+        <div style="margin-top:8px;">
+          <div style="font-size:12px;color:#8e9aaf;">SESSDATA</div>
+          <div id="qrSessdata" class="sessdata-box"></div>
+        </div>
+        <div style="margin-top:6px;font-size:12px;" id="qrUid"></div>
+        <div class="hint mt-8">✅ 已自动填入「批量导出」和「单个查询」</div>
+      </div>
+
+      <pre id="qrLog" class="log-box hidden"></pre>
+    </div>
+  </div>
+
+  <!-- ════════ Tab 2: 批量导出 ════════ -->
+  <div id="tabBatch" class="tab-content">
     <div class="card">
       <div class="card-title">📋 批量导出关注列表</div>
       <div class="card-sub">导出结果为 Excel 文件，包含 UP 主名称、UID、关注时间</div>
 
       <label>SESSDATA</label>
-      <input type="text" id="batchSessdata" placeholder="从浏览器 Cookie 中获取的 SESSDATA 值" autocomplete="off">
+      <input type="text" id="batchSessdata" placeholder="从扫码登录获取，或手动填写" autocomplete="off">
       <div class="hint">登录B站 → F12 → Application → Cookies → bilibili.com → 复制 SESSDATA</div>
 
       <label>你的 B站 UID</label>
-      <input type="text" id="batchUid" placeholder="你的 UID（数字）">
+      <input type="text" id="batchUid" placeholder="扫码自动填入，或手动填写">
 
       <div class="flex mt-12">
         <button class="btn btn-primary" onclick="startBatchExport()" id="batchBtn">📥 开始导出</button>
@@ -94,19 +127,19 @@ textarea { resize: vertical; min-height: 60px; }
 
       <div id="batchResult" class="hidden">
         <div class="status success" id="batchDoneMsg"></div>
-        <button class="btn btn-secondary mt-8" onclick="downloadExcel()" id="downloadBtn">📁 下载 Excel 文件</button>
+        <button class="btn btn-secondary mt-8" onclick="downloadExcel()">📁 下载 Excel 文件</button>
       </div>
     </div>
   </div>
 
-  <!-- ════════ Tab: 单个查询 ════════ -->
+  <!-- ════════ Tab 3: 单个查询 ════════ -->
   <div id="tabSingle" class="tab-content">
     <div class="card">
       <div class="card-title">🔍 查询是否关注某个 UP 主</div>
       <div class="card-sub">输入 UP 主 UID，查看关注状态和关注时间</div>
 
       <label>SESSDATA</label>
-      <input type="text" id="singleSessdata" placeholder="SESSDATA" autocomplete="off">
+      <input type="text" id="singleSessdata" placeholder="从扫码登录获取，或手动填写" autocomplete="off">
 
       <label>UP主 UID</label>
       <input type="text" id="singleUid" placeholder="要查询的 UP 主 UID">
@@ -128,6 +161,8 @@ textarea { resize: vertical; min-height: 60px; }
 <script>
 const PROXY_URL = 'https://bili-api-proxy.hale51679.workers.dev'
 
+// ══ API 调用 ═══════════════════════════════════════════════
+
 async function api(method, biliUrl, cookie) {
   const params = new URLSearchParams()
   params.set('url', biliUrl)
@@ -137,33 +172,31 @@ async function api(method, biliUrl, cookie) {
     method: method,
     headers: { 'Content-Type': 'application/json' },
   })
-
   if (!resp.ok) {
     const text = await resp.text()
     throw new Error(`请求失败 (${resp.status}): ${text.slice(0, 100)}`)
   }
-
   const text = await resp.text()
   try { return JSON.parse(text) } catch(e) { return text }
-}
-
-function log(containerId, msg) {
-  const el = document.getElementById(containerId)
-  el.classList.remove('hidden')
-  el.textContent += msg + '\n'
-  el.scrollTop = el.scrollHeight
-}
-
-function clearLog(containerId) {
-  const el = document.getElementById(containerId)
-  el.textContent = ''
-  el.classList.add('hidden')
 }
 
 function setStatus(id, type, msg) {
   const el = document.getElementById(id)
   el.className = 'status ' + type
   el.textContent = msg
+}
+
+function logEl(id, msg) {
+  const el = document.getElementById(id)
+  el.classList.remove('hidden')
+  el.textContent += msg + '\n'
+  el.scrollTop = el.scrollHeight
+}
+
+function clearEl(id) {
+  const el = document.getElementById(id)
+  el.textContent = ''
+  el.classList.add('hidden')
 }
 
 function switchTab(name) {
@@ -173,7 +206,126 @@ function switchTab(name) {
   event.target.classList.add('active')
 }
 
-// ══ 批量导出 ═══════════════════════════════════════════════
+// ══ Tab 1: 扫码登录 ═══════════════════════════════════════
+
+let qrPollTimer = null
+
+async function startQRLogin() {
+  const btn = document.getElementById('qrBtn')
+  btn.disabled = true
+  btn.textContent = '⏳ 生成中...'
+  setStatus('qrStatus', 'info', '正在请求二维码...')
+  document.getElementById('qrResult').classList.add('hidden')
+  clearEl('qrLog')
+  // 清除旧二维码
+  document.getElementById('qrcode').innerHTML = ''
+
+  try {
+    const resp = await api('GET',
+      'https://passport.bilibili.com/x/passport-login/web/qrcode/generate?source=main-fe-header'
+    )
+    if (resp.code !== 0) throw new Error(resp.message || '生成二维码失败')
+
+    const qrcodeKey = resp.data.qrcode_key
+    const url = resp.data.url
+
+    // 显示二维码
+    new QRCode(document.getElementById('qrcode'), {
+      text: url,
+      width: 180,
+      height: 180,
+      correctLevel: QRCode.CorrectLevel.H,
+    })
+
+    setStatus('qrStatus', 'info', '📱 请打开B站App扫描二维码')
+    btn.textContent = '🔄 重新生成'
+    btn.disabled = false
+    logEl('qrLog', '✅ 二维码已生成')
+    logEl('qrLog', '💡 请打开B站App扫码')
+
+    // 开始轮询
+    startQrPoll(qrcodeKey)
+  } catch(e) {
+    setStatus('qrStatus', 'error', '❌ ' + e.message)
+    btn.textContent = '🔲 生成二维码'
+    btn.disabled = false
+  }
+}
+
+async function startQrPoll(key) {
+  if (qrPollTimer) {
+    clearInterval(qrPollTimer)
+    qrPollTimer = null
+  }
+
+  const log = (m) => logEl('qrLog', m)
+  let elapsed = 0
+
+  qrPollTimer = setInterval(async () => {
+    elapsed += 2
+    if (elapsed > 180) {
+      clearInterval(qrPollTimer)
+      qrPollTimer = null
+      setStatus('qrStatus', 'error', '⏰ 扫码超时，请重新生成')
+      return
+    }
+
+    try {
+      const resp = await api('GET',
+        `https://passport.bilibili.com/x/passport-login/web/qrcode/poll?qrcode_key=${key}`
+      )
+
+      const innerCode = resp.data && resp.data.code
+
+      if (innerCode === 0) {
+        // 登录成功
+        clearInterval(qrPollTimer)
+        qrPollTimer = null
+
+        const sessdata = resp._sessdata || ''
+        if (!sessdata) {
+          setStatus('qrStatus', 'error', '❌ 获取 SESSDATA 失败，请手动填写')
+          return
+        }
+
+        log('🎉 扫码登录成功！')
+        document.getElementById('qrSessdata').textContent = sessdata
+        document.getElementById('qrResult').classList.remove('hidden')
+
+        // 填入其他Tab
+        document.getElementById('batchSessdata').value = sessdata
+        document.getElementById('singleSessdata').value = sessdata
+
+        // 获取 UID
+        try {
+          const navResp = await api('GET', 'https://api.bilibili.com/x/web-interface/nav', `SESSDATA=${sessdata}`)
+          if (navResp.code === 0 && navResp.data) {
+            const uid = navResp.data.mid
+            document.getElementById('batchUid').value = uid
+            document.getElementById('qrUid').textContent = '👤 UID: ' + uid
+          }
+        } catch(_) {}
+
+        setStatus('qrStatus', 'success', '✅ 登录成功！SESSDATA 和 UID 已自动填入')
+        log('✅ SESSDATA 和 UID 已自动填入各Tab')
+
+      } else if (innerCode === 86090) {
+        setStatus('qrStatus', 'info', '📱 已扫码，请在手机上确认...')
+      } else if (innerCode === 86038) {
+        clearInterval(qrPollTimer)
+        qrPollTimer = null
+        setStatus('qrStatus', 'error', '⏰ 二维码已过期，请重新生成')
+        log('⏰ 二维码已过期')
+      } else {
+        // 86101 = 未扫码，继续等待
+      }
+    } catch(e) {
+      // 轮询出错继续
+    }
+  }, 2000)
+}
+
+// ══ Tab 2: 批量导出 ═══════════════════════════════════════
 
 let exportResults = []
 
@@ -191,7 +343,7 @@ async function startBatchExport() {
   btn.textContent = '⏳ 导出中...'
   setStatus('batchStatus', 'info', '正在获取关注列表...')
   document.getElementById('batchProgress').classList.remove('hidden')
-  clearLog('batchLog')
+  clearEl('batchLog')
   document.getElementById('batchResult').classList.add('hidden')
   exportResults = []
 
@@ -200,14 +352,13 @@ async function startBatchExport() {
       `https://api.bilibili.com/x/relation/followings?vmid=${uid}&pn=1&ps=50&order=desc`,
       `SESSDATA=${sessdata}`
     )
-
     if (followingsResp.code !== 0) {
       throw new Error(followingsResp.message || '获取关注列表失败')
     }
 
     const list = followingsResp.data.list || []
     const total = followingsResp.data.total || list.length
-    log('batchLog', `✅ 共获取 ${total} 个UP主，开始查询关注时间...`)
+    logEl('batchLog', `✅ 共获取 ${total} 个UP主，开始查询关注时间...`)
 
     let allItems = [...list]
     let page = 2
@@ -216,9 +367,7 @@ async function startBatchExport() {
         `https://api.bilibili.com/x/relation/followings?vmid=${uid}&pn=${page}&ps=50&order=desc`,
         `SESSDATA=${sessdata}`
       )
-      if (resp.code === 0 && resp.data.list) {
-        allItems.push(...resp.data.list)
-      }
+      if (resp.code === 0 && resp.data.list) allItems.push(...resp.data.list)
       page++
       if (page > 50) break
     }
@@ -226,9 +375,7 @@ async function startBatchExport() {
     const results = []
     for (let i = 0; i < allItems.length; i++) {
       const up = allItems[i]
-      const progress = ((i + 1) / allItems.length * 100).toFixed(1)
-      document.getElementById('batchProgressInner').style.width = progress + '%'
-      log('batchLog', `  [${i+1}/${allItems.length}] ${up.uname} — 查询中...`)
+      document.getElementById('batchProgressInner').style.width = ((i + 1) / allItems.length * 100) + '%'
 
       try {
         const timeResp = await api('GET',
@@ -238,19 +385,12 @@ async function startBatchExport() {
         let followTime = '未知'
         if (timeResp.code === 0 && timeResp.data && timeResp.data.relation) {
           const ts = timeResp.data.relation.mtime
-          if (ts) {
-            followTime = new Date(ts * 1000).toLocaleString('zh-CN', { hour12: false })
-          }
+          if (ts) followTime = new Date(ts * 1000).toLocaleString('zh-CN', { hour12: false })
         }
         results.push({ name: up.uname, mid: up.mid, follow_time: followTime })
-        const logEl = document.getElementById('batchLog')
-        const lines = logEl.textContent.split('\n')
-        lines[lines.length-1] = `  [${i+1}/${allItems.length}] ${up.uname} → ${followTime}`
-        logEl.textContent = lines.join('\n')
       } catch(e) {
         results.push({ name: up.uname, mid: up.mid, follow_time: '查询失败' })
       }
-
       await new Promise(r => setTimeout(r, 500))
     }
 
@@ -259,12 +399,10 @@ async function startBatchExport() {
     setStatus('batchStatus', 'success', `🎉 导出完成！共 ${results.length} 条记录`)
     document.getElementById('batchDoneMsg').textContent = `🎉 导出完成！共 ${results.length} 条记录`
     document.getElementById('batchResult').classList.remove('hidden')
-    log('batchLog', `\n✅ 完成！共导出 ${results.length} 条记录`)
 
   } catch(e) {
     document.getElementById('batchProgress').classList.add('hidden')
     setStatus('batchStatus', 'error', '❌ ' + e.message)
-    log('batchLog', '❌ 错误: ' + e.message)
   } finally {
     btn.disabled = false
     btn.textContent = '📥 开始导出'
@@ -273,23 +411,17 @@ async function startBatchExport() {
 
 function downloadExcel() {
   if (!exportResults.length) return
-
   const data = exportResults.map((r, i) => ({
-    '序号': i + 1,
-    'UP主名称': r.name,
-    'UID': r.mid,
-    '关注时间': r.follow_time
+    '序号': i + 1, 'UP主名称': r.name, 'UID': r.mid, '关注时间': r.follow_time
   }))
-
   const ws = XLSX.utils.json_to_sheet(data)
   ws['!cols'] = [{wch:6}, {wch:24}, {wch:14}, {wch:20}]
-
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, '关注列表')
   XLSX.writeFile(wb, 'b站关注列表.xlsx')
 }
 
-// ══ 单个查询 ═══════════════════════════════════════════════
+// ══ Tab 3: 单个查询 ═══════════════════════════════════════
 
 async function startSingleQuery() {
   const sessdata = document.getElementById('singleSessdata').value.trim()
@@ -311,7 +443,6 @@ async function startSingleQuery() {
       `https://api.bilibili.com/x/space/acc/info?mid=${targetUid}`,
       `SESSDATA=${sessdata}`
     )
-
     const name = (infoResp.code === 0 && infoResp.data) ? infoResp.data.name : '未知用户'
 
     const relResp = await api('GET',
@@ -321,7 +452,6 @@ async function startSingleQuery() {
 
     let isFollowing = false
     let followTime = ''
-
     if (relResp.code === 0 && relResp.data && relResp.data.relation) {
       isFollowing = relResp.data.relation.attribute !== 0
       if (isFollowing && relResp.data.relation.mtime) {
@@ -332,20 +462,16 @@ async function startSingleQuery() {
     if (isFollowing) {
       document.getElementById('singleResult').innerHTML = `
         <div class="result-card following">
-          <h3>${name}</h3>
-          <p><b>UID:</b> ${targetUid}</p>
+          <h3>${name}</h3><p><b>UID:</b> ${targetUid}</p>
           <p style="color:#00A1D6;">✅ 已关注 · ${followTime}</p>
-        </div>
-      `
+        </div>`
       setStatus('singleStatus', 'success', `已关注 ${name}`)
     } else {
       document.getElementById('singleResult').innerHTML = `
         <div class="result-card not-following">
-          <h3>${name}</h3>
-          <p><b>UID:</b> ${targetUid}</p>
+          <h3>${name}</h3><p><b>UID:</b> ${targetUid}</p>
           <p style="color:#dc3545;">❌ 未关注</p>
-        </div>
-      `
+        </div>`
       setStatus('singleStatus', 'warning', `你尚未关注 ${name}`)
     }
   } catch(e) {

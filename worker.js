@@ -41,16 +41,35 @@ async function handleRequest(request) {
         }
 
         if (isJSON) {
-            // JSON API 响应 → 同时也透传 Set-Cookie（用于扫码登录）
             const responseHeaders = {
                 ...corsHeaders,
                 "Content-Type": "application/json; charset=utf-8",
             }
-            // 透传 Set-Cookie
-            const setCookie = resp.headers.get("Set-Cookie")
-            if (setCookie) {
-                responseHeaders["Set-Cookie"] = setCookie
+
+            // 扫码轮询接口：提取 Set-Cookie 中的 SESSDATA 塞入响应体
+            if (target.includes("qrcode/poll")) {
+                const setCookie = resp.headers.get("Set-Cookie")
+                let sessdata = ""
+                if (setCookie) {
+                    // Set-Cookie 可能有多段，找到 SESSDATA=xxx 部分
+                    for (const part of setCookie.split(";")) {
+                        const trimmed = part.trim()
+                        if (trimmed.startsWith("SESSDATA=")) {
+                            sessdata = trimmed.substring(9)
+                            break
+                        }
+                    }
+                }
+                if (sessdata) {
+                    // 把 SESSDATA 注入到 JSON 响应体中
+                    try {
+                        const json = JSON.parse(body)
+                        json._sessdata = sessdata
+                        return new Response(JSON.stringify(json), { headers: responseHeaders })
+                    } catch (_) {}
+                }
             }
+
             return new Response(body, { headers: responseHeaders })
         } else {
             return new Response(body, { headers: { ...corsHeaders, "Content-Type": contentType || "text/plain" } })
