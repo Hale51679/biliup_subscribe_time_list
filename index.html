@@ -8,38 +8,26 @@
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, "Microsoft YaHei", sans-serif; background: #f4f5f7; color: #1f2a3a; min-height: 100vh; }
-
-/* 布局 */
 .container { max-width: 640px; margin: 0 auto; padding: 16px; }
-
-/* 标题 */
 .header { background: #00A1D6; text-align: center; padding: 20px 16px; }
 .header h1 { color: #fff; font-size: 20px; }
 .header p { color: #cce8f7; font-size: 13px; margin-top: 4px; }
-
-/* Tab */
-.tabs { display: flex; background: #fff; border-bottom: 1px solid #e8ecf1; }
+.tabs { display: flex; background: #fff; border-bottom: 1px solid #e8ecf1; margin-top: 12px; }
 .tab-btn { flex: 1; padding: 12px; text-align: center; font-size: 14px; font-weight: 600;
   cursor: pointer; color: #8e9aaf; border: none; background: none; transition: all .2s; }
 .tab-btn.active { color: #00A1D6; border-bottom: 2px solid #00A1D6; }
 .tab-btn:hover { color: #00A1D6; }
 .tab-content { display: none; }
 .tab-content.active { display: block; }
-
-/* 卡片 */
 .card { background: #fff; border: 1px solid #e8ecf1; border-radius: 8px; padding: 16px; margin-top: 12px; }
 .card-title { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
 .card-sub { font-size: 12px; color: #8e9aaf; margin-bottom: 4px; }
-
-/* 表单 */
 label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; margin-top: 12px; }
 label:first-child { margin-top: 0; }
 input, textarea { width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid #e8ecf1;
   border-radius: 6px; outline: none; transition: border .2s; font-family: "Consolas", monospace; }
 input:focus, textarea:focus { border-color: #00A1D6; }
 textarea { resize: vertical; min-height: 60px; }
-
-/* 按钮 */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   padding: 10px 24px; font-size: 14px; font-weight: 600; border: none; border-radius: 6px;
   cursor: pointer; transition: all .2s; width: 100%; }
@@ -48,49 +36,27 @@ textarea { resize: vertical; min-height: 60px; }
 .btn-primary:disabled { background: #b0d4e6; cursor: not-allowed; }
 .btn-secondary { background: #fff; color: #00A1D6; border: 1px solid #00A1D6; }
 .btn-secondary:hover { background: #f0f9ff; }
-
-/* 状态 */
 .status { padding: 10px 14px; border-radius: 6px; font-size: 13px; margin-top: 8px; display: none; }
 .status.info { display: block; background: #f0f9ff; color: #004085; border: 1px solid #b8daff; }
 .status.success { display: block; background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
 .status.error { display: block; background: #fff3f3; color: #721c24; border: 1px solid #f5c6cb; }
 .status.warning { display: block; background: #fffbe6; color: #856404; border: 1px solid #ffeeba; }
-
-/* 工具 */
 .hidden { display: none !important; }
 .mt-8 { margin-top: 8px; }
 .mt-12 { margin-top: 12px; }
 .flex { display: flex; gap: 8px; }
 .flex-1 { flex: 1; }
-
-/* 日志 */
 .log-box { background: #1a1d23; color: #ccc; border-radius: 6px; padding: 10px; font-size: 12px;
   font-family: "Consolas", monospace; height: 160px; overflow-y: auto; white-space: pre-wrap;
   word-break: break-all; margin-top: 8px; }
-
-/* 进度条 */
 .progress-bar { height: 6px; background: #e8ecf1; border-radius: 3px; margin-top: 8px; overflow: hidden; }
 .progress-bar-inner { height: 100%; background: #00A1D6; border-radius: 3px; width: 0%; transition: width .3s; }
-
-/* 提示信息 */
 .hint { font-size: 12px; color: #8e9aaf; margin-top: 4px; }
-.hint-code { display: inline-block; background: #f0f9ff; padding: 1px 6px; border-radius: 3px;
-  font-family: Consolas, monospace; font-size: 11px; color: #00A1D6; }
-
-/* 设置区 */
-.settings-toggle { display: flex; align-items: center; gap: 6px; font-size: 13px;
-  color: #00A1D6; cursor: pointer; padding: 6px 0; }
-.settings-toggle:hover { color: #0085b3; }
-
-/* 结果卡片 */
 .result-card { padding: 14px; border-radius: 8px; margin-top: 8px; }
 .result-card.following { background: #e8f7fd; border: 1px solid #b8daff; }
 .result-card.not-following { background: #fff3f3; border: 1px solid #f5c6cb; }
 .result-card h3 { margin: 0 0 4px 0; font-size: 15px; }
 .result-card p { margin: 2px 0; font-size: 13px; }
-
-/* 代理设置 */
-.proxy-config { background: #f8f9fa; border-radius: 6px; padding: 10px; margin-bottom: 4px; font-size: 12px; }
 </style>
 </head>
 <body>
@@ -100,21 +66,7 @@ textarea { resize: vertical; min-height: 60px; }
 </div>
 
 <div class="container">
-  <!-- 代理配置 -->
-  <div class="card" style="margin-top:12px;">
-    <div class="settings-toggle" onclick="toggleProxy()">⚙️ 配置 API 代理</div>
-    <div id="proxyPanel" class="proxy-config hidden">
-      <div class="card-sub">部署 Cloudflare Worker 后，把地址填在这里</div>
-      <input type="url" id="proxyUrl" placeholder="https://你的-worker名.workers.dev"
-             value="https://bili-api-proxy.你的用户名.workers.dev" style="font-size:12px;font-family:inherit;">
-      <div class="hint" style="margin-top:4px;">
-        📖 <a href="#" onclick="showDeployGuide();return false;">不知道怎么部署？点我查看教程</a>
-      </div>
-    </div>
-  </div>
-
-  <!-- Tabs -->
-  <div class="tabs" style="margin-top:12px;">
+  <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('batch')">📋 批量导出</button>
     <button class="tab-btn" onclick="switchTab('single')">🔍 单个查询</button>
   </div>
@@ -126,8 +78,7 @@ textarea { resize: vertical; min-height: 60px; }
       <div class="card-sub">导出结果为 Excel 文件，包含 UP 主名称、UID、关注时间</div>
 
       <label>SESSDATA</label>
-      <input type="text" id="batchSessdata" placeholder="从浏览器 Cookie 中获取的 SESSDATA 值"
-             autocomplete="off">
+      <input type="text" id="batchSessdata" placeholder="从浏览器 Cookie 中获取的 SESSDATA 值" autocomplete="off">
       <div class="hint">登录B站 → F12 → Application → Cookies → bilibili.com → 复制 SESSDATA</div>
 
       <label>你的 B站 UID</label>
@@ -169,51 +120,24 @@ textarea { resize: vertical; min-height: 60px; }
     </div>
   </div>
 
-  <!-- ════════ Footer ════════ -->
   <div style="text-align:center; padding: 20px 0; color: #8e9aaf; font-size: 12px;">
-    数据来源 Bilibili API · 需配合 Cloudflare Worker 使用
+    数据来源 Bilibili API
   </div>
 </div>
 
-<!-- 部署教程弹窗 -->
-<div id="guideOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;"
-     onclick="closeGuide(event)">
-<div style="background:#fff;max-width:540px;margin:40px auto;border-radius:12px;padding:24px;max-height:80vh;overflow-y:auto;">
-<h2 style="font-size:18px;margin-bottom:12px;">🚀 Cloudflare Worker 部署教程</h2>
-<ol style="padding-left:20px;line-height:1.8;font-size:14px;">
-  <li>打开 <a href="https://dash.cloudflare.com" target="_blank">dash.cloudflare.com</a> 并注册/登录</li>
-  <li>点击左侧 <b>「Workers & Pages」</b></li>
-  <li>点击 <b>「创建」</b> → <b>「Worker」</b></li>
-  <li>给 Worker 取个名字，比如 <code>bili-api-proxy</code></li>
-  <li>把仓库里的 <code>worker.js</code> 内容 <b>全部复制粘贴</b> 到编辑器中</li>
-  <li>点击右上角 <b>「部署」</b> 按钮</li>
-  <li>部署完成后，把显示的 <code>xxx.workers.dev</code> 地址填入上方输入框</li>
-</ol>
-<p style="margin-top:12px;font-size:13px;color:#8e9aaf;">完成后刷新本页面，填好代理地址即可使用 🎉</p>
-<button class="btn btn-primary" onclick="closeGuide(event)" style="margin-top:8px;">知道了</button>
-</div>
-</div>
-
 <script>
-// ══ 工具函数 ═══════════════════════════════════════════════
+const PROXY_URL = 'https://bili-api-proxy.hale51679.workers.dev'
 
 async function api(method, biliUrl, cookie) {
-  const proxyBase = (document.getElementById('proxyUrl').value || '').replace(/\/+$/, '')
-  if (!proxyBase || !proxyBase.includes('workers.dev')) {
-    throw new Error('请先配置 Cloudflare Worker 地址')
-  }
-
-  // 编码参数以避免嵌套 URL 编码问题
   const params = new URLSearchParams()
   params.set('url', biliUrl)
   if (cookie) params.set('cookie', cookie)
 
-  const resp = await fetch(`${proxyBase}/?${params.toString()}`, {
+  const resp = await fetch(`${PROXY_URL}/?${params.toString()}`, {
     method: method,
     headers: { 'Content-Type': 'application/json' },
   })
 
-  // Chrome 等浏览器可能会报 CORS 错误。如果出现，引导用户
   if (!resp.ok) {
     const text = await resp.text()
     throw new Error(`请求失败 (${resp.status}): ${text.slice(0, 100)}`)
@@ -242,30 +166,11 @@ function setStatus(id, type, msg) {
   el.textContent = msg
 }
 
-// ══ Tab 切换 ═══════════════════════════════════════════════
-
 function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'))
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'))
   document.getElementById('tab' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('active')
   event.target.classList.add('active')
-}
-
-// ══ 代理配置 ═══════════════════════════════════════════════
-
-function toggleProxy() {
-  const p = document.getElementById('proxyPanel')
-  p.classList.toggle('hidden')
-}
-
-function showDeployGuide() {
-  document.getElementById('guideOverlay').style.display = 'block'
-}
-
-function closeGuide(e) {
-  if (e.target === e.currentTarget || e.target.tagName === 'BUTTON') {
-    document.getElementById('guideOverlay').style.display = 'none'
-  }
 }
 
 // ══ 批量导出 ═══════════════════════════════════════════════
@@ -291,7 +196,6 @@ async function startBatchExport() {
   exportResults = []
 
   try {
-    // 1. 获取关注列表
     const followingsResp = await api('GET',
       `https://api.bilibili.com/x/relation/followings?vmid=${uid}&pn=1&ps=50&order=desc`,
       `SESSDATA=${sessdata}`
@@ -305,7 +209,6 @@ async function startBatchExport() {
     const total = followingsResp.data.total || list.length
     log('batchLog', `✅ 共获取 ${total} 个UP主，开始查询关注时间...`)
 
-    // 2. 逐页获取全部
     let allItems = [...list]
     let page = 2
     while (allItems.length < total) {
@@ -320,7 +223,6 @@ async function startBatchExport() {
       if (page > 50) break
     }
 
-    // 3. 查询关注时间
     const results = []
     for (let i = 0; i < allItems.length; i++) {
       const up = allItems[i]
@@ -341,7 +243,6 @@ async function startBatchExport() {
           }
         }
         results.push({ name: up.uname, mid: up.mid, follow_time: followTime })
-        // 更新最后一行日志
         const logEl = document.getElementById('batchLog')
         const lines = logEl.textContent.split('\n')
         lines[lines.length-1] = `  [${i+1}/${allItems.length}] ${up.uname} → ${followTime}`
@@ -350,11 +251,9 @@ async function startBatchExport() {
         results.push({ name: up.uname, mid: up.mid, follow_time: '查询失败' })
       }
 
-      // 延迟避免风控
       await new Promise(r => setTimeout(r, 500))
     }
 
-    // 4. 完成
     exportResults = results
     document.getElementById('batchProgress').classList.add('hidden')
     setStatus('batchStatus', 'success', `🎉 导出完成！共 ${results.length} 条记录`)
@@ -408,7 +307,6 @@ async function startSingleQuery() {
   document.getElementById('singleResult').innerHTML = ''
 
   try {
-    // 查询用户信息
     const infoResp = await api('GET',
       `https://api.bilibili.com/x/space/acc/info?mid=${targetUid}`,
       `SESSDATA=${sessdata}`
@@ -416,7 +314,6 @@ async function startSingleQuery() {
 
     const name = (infoResp.code === 0 && infoResp.data) ? infoResp.data.name : '未知用户'
 
-    // 查询关注状态
     const relResp = await api('GET',
       `https://api.bilibili.com/x/space/acc/relation?mid=${targetUid}`,
       `SESSDATA=${sessdata}`
