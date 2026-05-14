@@ -68,45 +68,30 @@ def make_headers(sessdata):
         "Cookie": f"SESSDATA={sessdata}",
     }
 
-def get_following_list(uid, headers, log_fn, max_retries=5):
+def get_following_list(uid, headers, log_fn):
     followings = []
     page, page_size = 1, 50
     while True:
-        for attempt in range(1, max_retries + 1):
-            try:
-                url = f"https://api.bilibili.com/x/relation/followings?vmid={uid}&pn={page}&ps={page_size}&order=desc"
-                resp = requests.get(url, headers=headers, timeout=10)
-                data = resp.json()
-                code = data.get("code")
-                if code == -799:
-                    wait = attempt * 3
-                    log_fn(f"风控限流，等待 {wait}s（第{page}页，尝试 {attempt}/{max_retries}）...")
-                    time.sleep(wait)
-                    continue
-                if code != 0:
-                    log_fn(f"获取关注列表失败: {data.get('message')}")
-                    return []
-                items = data["data"].get("list", [])
-                if not items:
-                    return followings
-                for item in items:
-                    followings.append({"mid": item["mid"], "name": item["uname"]})
-                total = data["data"].get("total", 0)
-                log_fn(f"已获取 {len(followings)}/{total} 个UP主")
-                break
-            except Exception as e:
-                log_fn(f"第{page}页出错: {e}")
-                time.sleep(2)
-        else:
-            log_fn(f"第{page}页重试 {max_retries} 次后放弃")
-            return followings
+        url = f"https://api.bilibili.com/x/relation/followings?vmid={uid}&pn={page}&ps={page_size}&order=desc"
+        resp = requests.get(url, headers=headers, timeout=10)
+        data = resp.json()
+        if data.get("code") != 0:
+            log_fn(f"获取关注列表失败: {data.get('message')}")
+            return []
+        items = data["data"].get("list", [])
+        if not items:
+            break
+        for item in items:
+            followings.append({"mid": item["mid"], "name": item["uname"]})
+        total = data["data"].get("total", 0)
+        log_fn(f"已获取 {len(followings)}/{total} 个UP主")
         if len(followings) >= total:
             break
         page += 1
-        time.sleep(1)
+        time.sleep(0.5)
     return followings
 
-def get_follow_time(target_uid, headers, log_fn, max_retries=8):
+def get_follow_time(target_uid, headers, log_fn, max_retries=5):
     url = f"https://api.bilibili.com/x/space/acc/relation?mid={target_uid}"
     for attempt in range(1, max_retries + 1):
         try:
@@ -114,7 +99,7 @@ def get_follow_time(target_uid, headers, log_fn, max_retries=8):
             data = resp.json()
             code = data.get("code")
             if code == -799:
-                wait = min(attempt * 3, 30)
+                wait = attempt * 2
                 log_fn(f"风控限流，等待 {wait}s（{attempt}/{max_retries}）...")
                 time.sleep(wait)
                 continue
@@ -133,21 +118,15 @@ def get_follow_time(target_uid, headers, log_fn, max_retries=8):
     log_fn(f"uid={target_uid} 重试 {max_retries} 次后失败")
     return None, False
 
-def get_user_info(uid, headers, max_retries=3):
+def get_user_info(uid, headers):
     url = f"https://api.bilibili.com/x/space/acc/info?mid={uid}"
-    for attempt in range(1, max_retries + 1):
-        try:
-            resp = requests.get(url, headers=headers, timeout=10)
-            data = resp.json()
-            code = data.get("code")
-            if code == -799:
-                time.sleep(attempt * 2)
-                continue
-            if code == 0:
-                return data["data"].get("name", "未知用户")
-            return "未知用户"
-        except Exception:
-            time.sleep(2)
+    try:
+        resp = requests.get(url, headers=headers, timeout=10)
+        data = resp.json()
+        if data.get("code") == 0:
+            return data["data"].get("name", "未知用户")
+    except Exception:
+        pass
     return "未知用户"
 
 def timestamp_to_str(ts):
@@ -361,13 +340,18 @@ with tab_batch:
                 total = len(followings)
                 log_fn(f"共 {total} 个UP主，开始查询关注时间...")
                 results = []
+                result_placeholder = st.empty()
+                result_lines = []
                 for i, up in enumerate(followings):
                     mtime, _ = get_follow_time(up["mid"], headers, log_fn)
                     follow_time = timestamp_to_str(mtime)
                     results.append({"name": up["name"], "mid": up["mid"], "follow_time": follow_time})
+                    result_lines.append(f"  [{i+1:3d}/{total}] {up['name']}  →  {follow_time}")
+                    result_placeholder.code("\n".join(result_lines[-30:]), language="")
                     progress_bar.progress((i + 1) / total, text=f"{i+1}/{total}")
-                    time.sleep(1.5)
+                    time.sleep(0.8)
 
+                result_placeholder.empty()
                 log_placeholder.empty()
                 progress_bar.empty()
 
