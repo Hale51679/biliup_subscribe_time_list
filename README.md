@@ -18,7 +18,6 @@
 
 [🌐 在线使用](https://share.streamlit.io) — 绑定本仓库部署
 
-> 推荐使用 Chrome / Edge 浏览器打开。部署方式：在 [Streamlit Community Cloud](https://share.streamlit.io) 新建 App，选择本仓库，入口文件设为 `streamlit_app.py`。
 
 ### 方式三：本地运行源码
 
