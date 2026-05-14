@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>B站关注列表导出工具</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, "Microsoft YaHei", sans-serif; background: #f4f5f7; color: #1f2a3a; min-height: 100vh; }
+
+/* 布局 */
+.container { max-width: 640px; margin: 0 auto; padding: 16px; }
+
+/* 标题 */
+.header { background: #00A1D6; text-align: center; padding: 20px 16px; }
+.header h1 { color: #fff; font-size: 20px; }
+.header p { color: #cce8f7; font-size: 13px; margin-top: 4px; }
+
+/* Tab */
+.tabs { display: flex; background: #fff; border-bottom: 1px solid #e8ecf1; }
+.tab-btn { flex: 1; padding: 12px; text-align: center; font-size: 14px; font-weight: 600;
+  cursor: pointer; color: #8e9aaf; border: none; background: none; transition: all .2s; }
+.tab-btn.active { color: #00A1D6; border-bottom: 2px solid #00A1D6; }
+.tab-btn:hover { color: #00A1D6; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* 卡片 */
+.card { background: #fff; border: 1px solid #e8ecf1; border-radius: 8px; padding: 16px; margin-top: 12px; }
+.card-title { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+.card-sub { font-size: 12px; color: #8e9aaf; margin-bottom: 4px; }
+
+/* 表单 */
+label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; margin-top: 12px; }
+label:first-child { margin-top: 0; }
+input, textarea { width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid #e8ecf1;
+  border-radius: 6px; outline: none; transition: border .2s; font-family: "Consolas", monospace; }
+input:focus, textarea:focus { border-color: #00A1D6; }
+textarea { resize: vertical; min-height: 60px; }
+
+/* 按钮 */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px 24px; font-size: 14px; font-weight: 600; border: none; border-radius: 6px;
+  cursor: pointer; transition: all .2s; width: 100%; }
+.btn-primary { background: #00A1D6; color: #fff; }
+.btn-primary:hover { background: #0085b3; }
+.btn-primary:disabled { background: #b0d4e6; cursor: not-allowed; }
+.btn-secondary { background: #fff; color: #00A1D6; border: 1px solid #00A1D6; }
+.btn-secondary:hover { background: #f0f9ff; }
+
+/* 状态 */
+.status { padding: 10px 14px; border-radius: 6px; font-size: 13px; margin-top: 8px; display: none; }
+.status.info { display: block; background: #f0f9ff; color: #004085; border: 1px solid #b8daff; }
+.status.success { display: block; background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+.status.error { display: block; background: #fff3f3; color: #721c24; border: 1px solid #f5c6cb; }
+.status.warning { display: block; background: #fffbe6; color: #856404; border: 1px solid #ffeeba; }
+
+/* 工具 */
+.hidden { display: none !important; }
+.mt-8 { margin-top: 8px; }
+.mt-12 { margin-top: 12px; }
+.flex { display: flex; gap: 8px; }
+.flex-1 { flex: 1; }
+
+/* 日志 */
+.log-box { background: #1a1d23; color: #ccc; border-radius: 6px; padding: 10px; font-size: 12px;
+  font-family: "Consolas", monospace; height: 160px; overflow-y: auto; white-space: pre-wrap;
+  word-break: break-all; margin-top: 8px; }
+
+/* 进度条 */
+.progress-bar { height: 6px; background: #e8ecf1; border-radius: 3px; margin-top: 8px; overflow: hidden; }
+.progress-bar-inner { height: 100%; background: #00A1D6; border-radius: 3px; width: 0%; transition: width .3s; }
+
+/* 提示信息 */
+.hint { font-size: 12px; color: #8e9aaf; margin-top: 4px; }
+.hint-code { display: inline-block; background: #f0f9ff; padding: 1px 6px; border-radius: 3px;
+  font-family: Consolas, monospace; font-size: 11px; color: #00A1D6; }
+
+/* 设置区 */
+.settings-toggle { display: flex; align-items: center; gap: 6px; font-size: 13px;
+  color: #00A1D6; cursor: pointer; padding: 6px 0; }
+.settings-toggle:hover { color: #0085b3; }
+
+/* 结果卡片 */
+.result-card { padding: 14px; border-radius: 8px; margin-top: 8px; }
+.result-card.following { background: #e8f7fd; border: 1px solid #b8daff; }
+.result-card.not-following { background: #fff3f3; border: 1px solid #f5c6cb; }
+.result-card h3 { margin: 0 0 4px 0; font-size: 15px; }
+.result-card p { margin: 2px 0; font-size: 13px; }
+
+/* 代理设置 */
+.proxy-config { background: #f8f9fa; border-radius: 6px; padding: 10px; margin-bottom: 4px; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🎬 B站关注列表导出</h1>
+  <p>批量导出你关注的 UP 主名称、UID 与关注时间</p>
+</div>
+
+<div class="container">
+  <!-- 代理配置 -->
+  <div class="card" style="margin-top:12px;">
+    <div class="settings-toggle" onclick="toggleProxy()">⚙️ 配置 API 代理</div>
+    <div id="proxyPanel" class="proxy-config hidden">
+      <div class="card-sub">部署 Cloudflare Worker 后，把地址填在这里</div>
+      <input type="url" id="proxyUrl" placeholder="https://你的-worker名.workers.dev"
+             value="https://bili-api-proxy.你的用户名.workers.dev" style="font-size:12px;font-family:inherit;">
+      <div class="hint" style="margin-top:4px;">
+        📖 <a href="#" onclick="showDeployGuide();return false;">不知道怎么部署？点我查看教程</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs" style="margin-top:12px;">
+    <button class="tab-btn active" onclick="switchTab('batch')">📋 批量导出</button>
+    <button class="tab-btn" onclick="switchTab('single')">🔍 单个查询</button>
+  </div>
+
+  <!-- ════════ Tab: 批量导出 ════════ -->
+  <div id="tabBatch" class="tab-content active">
+    <div class="card">
+      <div class="card-title">📋 批量导出关注列表</div>
+      <div class="card-sub">导出结果为 Excel 文件，包含 UP 主名称、UID、关注时间</div>
+
+      <label>SESSDATA</label>
+      <input type="text" id="batchSessdata" placeholder="从浏览器 Cookie 中获取的 SESSDATA 值"
+             autocomplete="off">
+      <div class="hint">登录B站 → F12 → Application → Cookies → bilibili.com → 复制 SESSDATA</div>
+
+      <label>你的 B站 UID</label>
+      <input type="text" id="batchUid" placeholder="你的 UID（数字）">
+
+      <div class="flex mt-12">
+        <button class="btn btn-primary" onclick="startBatchExport()" id="batchBtn">📥 开始导出</button>
+      </div>
+
+      <div id="batchStatus" class="status"></div>
+      <div id="batchProgress" class="progress-bar hidden"><div class="progress-bar-inner" id="batchProgressInner"></div></div>
+      <pre id="batchLog" class="log-box hidden"></pre>
+
+      <div id="batchResult" class="hidden">
+        <div class="status success" id="batchDoneMsg"></div>
+        <button class="btn btn-secondary mt-8" onclick="downloadExcel()" id="downloadBtn">📁 下载 Excel 文件</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════ Tab: 单个查询 ════════ -->
+  <div id="tabSingle" class="tab-content">
+    <div class="card">
+      <div class="card-title">🔍 查询是否关注某个 UP 主</div>
+      <div class="card-sub">输入 UP 主 UID，查看关注状态和关注时间</div>
+
+      <label>SESSDATA</label>
+      <input type="text" id="singleSessdata" placeholder="SESSDATA" autocomplete="off">
+
+      <label>UP主 UID</label>
+      <input type="text" id="singleUid" placeholder="要查询的 UP 主 UID">
+
+      <div class="flex mt-12">
+        <button class="btn btn-primary" onclick="startSingleQuery()" id="singleBtn">🔍 查询</button>
+      </div>
+
+      <div id="singleStatus" class="status"></div>
+      <div id="singleResult"></div>
+    </div>
+  </div>
+
+  <!-- ════════ Footer ════════ -->
+  <div style="text-align:center; padding: 20px 0; color: #8e9aaf; font-size: 12px;">
+    数据来源 Bilibili API · 需配合 Cloudflare Worker 使用
+  </div>
+</div>
+
+<!-- 部署教程弹窗 -->
+<div id="guideOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;"
+     onclick="closeGuide(event)">
+<div style="background:#fff;max-width:540px;margin:40px auto;border-radius:12px;padding:24px;max-height:80vh;overflow-y:auto;">
+<h2 style="font-size:18px;margin-bottom:12px;">🚀 Cloudflare Worker 部署教程</h2>
+<ol style="padding-left:20px;line-height:1.8;font-size:14px;">
+  <li>打开 <a href="https://dash.cloudflare.com" target="_blank">dash.cloudflare.com</a> 并注册/登录</li>
+  <li>点击左侧 <b>「Workers & Pages」</b></li>
+  <li>点击 <b>「创建」</b> → <b>「Worker」</b></li>
+  <li>给 Worker 取个名字，比如 <code>bili-api-proxy</code></li>
+  <li>把仓库里的 <code>worker.js</code> 内容 <b>全部复制粘贴</b> 到编辑器中</li>
+  <li>点击右上角 <b>「部署」</b> 按钮</li>
+  <li>部署完成后，把显示的 <code>xxx.workers.dev</code> 地址填入上方输入框</li>
+</ol>
+<p style="margin-top:12px;font-size:13px;color:#8e9aaf;">完成后刷新本页面，填好代理地址即可使用 🎉</p>
+<button class="btn btn-primary" onclick="closeGuide(event)" style="margin-top:8px;">知道了</button>
+</div>
+</div>
+
+<script>
+// ══ 工具函数 ═══════════════════════════════════════════════
+
+async function api(method, biliUrl, cookie) {
+  const proxyBase = (document.getElementById('proxyUrl').value || '').replace(/\/+$/, '')
+  if (!proxyBase || !proxyBase.includes('workers.dev')) {
+    throw new Error('请先配置 Cloudflare Worker 地址')
+  }
+
+  // 编码参数以避免嵌套 URL 编码问题
+  const params = new URLSearchParams()
+  params.set('url', biliUrl)
+  if (cookie) params.set('cookie', cookie)
+
+  const resp = await fetch(`${proxyBase}/?${params.toString()}`, {
+    method: method,
+    headers: { 'Content-Type': 'application/json' },
+  })
+
+  // Chrome 等浏览器可能会报 CORS 错误。如果出现，引导用户
+  if (!resp.ok) {
+    const text = await resp.text()
+    throw new Error(`请求失败 (${resp.status}): ${text.slice(0, 100)}`)
+  }
+
+  const text = await resp.text()
+  try { return JSON.parse(text) } catch(e) { return text }
+}
+
+function log(containerId, msg) {
+  const el = document.getElementById(containerId)
+  el.classList.remove('hidden')
+  el.textContent += msg + '\n'
+  el.scrollTop = el.scrollHeight
+}
+
+function clearLog(containerId) {
+  const el = document.getElementById(containerId)
+  el.textContent = ''
+  el.classList.add('hidden')
+}
+
+function setStatus(id, type, msg) {
+  const el = document.getElementById(id)
+  el.className = 'status ' + type
+  el.textContent = msg
+}
+
+// ══ Tab 切换 ═══════════════════════════════════════════════
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'))
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'))
+  document.getElementById('tab' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('active')
+  event.target.classList.add('active')
+}
+
+// ══ 代理配置 ═══════════════════════════════════════════════
+
+function toggleProxy() {
+  const p = document.getElementById('proxyPanel')
+  p.classList.toggle('hidden')
+}
+
+function showDeployGuide() {
+  document.getElementById('guideOverlay').style.display = 'block'
+}
+
+function closeGuide(e) {
+  if (e.target === e.currentTarget || e.target.tagName === 'BUTTON') {
+    document.getElementById('guideOverlay').style.display = 'none'
+  }
+}
+
+// ══ 批量导出 ═══════════════════════════════════════════════
+
+let exportResults = []
+
+async function startBatchExport() {
+  const sessdata = document.getElementById('batchSessdata').value.trim()
+  const uid = document.getElementById('batchUid').value.trim()
+  const btn = document.getElementById('batchBtn')
+
+  if (!sessdata || !uid) {
+    setStatus('batchStatus', 'error', '请填写 SESSDATA 和 UID')
+    return
+  }
+
+  btn.disabled = true
+  btn.textContent = '⏳ 导出中...'
+  setStatus('batchStatus', 'info', '正在获取关注列表...')
+  document.getElementById('batchProgress').classList.remove('hidden')
+  clearLog('batchLog')
+  document.getElementById('batchResult').classList.add('hidden')
+  exportResults = []
+
+  try {
+    // 1. 获取关注列表
+    const followingsResp = await api('GET',
+      `https://api.bilibili.com/x/relation/followings?vmid=${uid}&pn=1&ps=50&order=desc`,
+      `SESSDATA=${sessdata}`
+    )
+
+    if (followingsResp.code !== 0) {
+      throw new Error(followingsResp.message || '获取关注列表失败')
+    }
+
+    const list = followingsResp.data.list || []
+    const total = followingsResp.data.total || list.length
+    log('batchLog', `✅ 共获取 ${total} 个UP主，开始查询关注时间...`)
+
+    // 2. 逐页获取全部
+    let allItems = [...list]
+    let page = 2
+    while (allItems.length < total) {
+      const resp = await api('GET',
+        `https://api.bilibili.com/x/relation/followings?vmid=${uid}&pn=${page}&ps=50&order=desc`,
+        `SESSDATA=${sessdata}`
+      )
+      if (resp.code === 0 && resp.data.list) {
+        allItems.push(...resp.data.list)
+      }
+      page++
+      if (page > 50) break
+    }
+
+    // 3. 查询关注时间
+    const results = []
+    for (let i = 0; i < allItems.length; i++) {
+      const up = allItems[i]
+      const progress = ((i + 1) / allItems.length * 100).toFixed(1)
+      document.getElementById('batchProgressInner').style.width = progress + '%'
+      log('batchLog', `  [${i+1}/${allItems.length}] ${up.uname} — 查询中...`)
+
+      try {
+        const timeResp = await api('GET',
+          `https://api.bilibili.com/x/space/acc/relation?mid=${up.mid}`,
+          `SESSDATA=${sessdata}`
+        )
+        let followTime = '未知'
+        if (timeResp.code === 0 && timeResp.data && timeResp.data.relation) {
+          const ts = timeResp.data.relation.mtime
+          if (ts) {
+            followTime = new Date(ts * 1000).toLocaleString('zh-CN', { hour12: false })
+          }
+        }
+        results.push({ name: up.uname, mid: up.mid, follow_time: followTime })
+        // 更新最后一行日志
+        const logEl = document.getElementById('batchLog')
+        const lines = logEl.textContent.split('\n')
+        lines[lines.length-1] = `  [${i+1}/${allItems.length}] ${up.uname} → ${followTime}`
+        logEl.textContent = lines.join('\n')
+      } catch(e) {
+        results.push({ name: up.uname, mid: up.mid, follow_time: '查询失败' })
+      }
+
+      // 延迟避免风控
+      await new Promise(r => setTimeout(r, 500))
+    }
+
+    // 4. 完成
+    exportResults = results
+    document.getElementById('batchProgress').classList.add('hidden')
+    setStatus('batchStatus', 'success', `🎉 导出完成！共 ${results.length} 条记录`)
+    document.getElementById('batchDoneMsg').textContent = `🎉 导出完成！共 ${results.length} 条记录`
+    document.getElementById('batchResult').classList.remove('hidden')
+    log('batchLog', `\n✅ 完成！共导出 ${results.length} 条记录`)
+
+  } catch(e) {
+    document.getElementById('batchProgress').classList.add('hidden')
+    setStatus('batchStatus', 'error', '❌ ' + e.message)
+    log('batchLog', '❌ 错误: ' + e.message)
+  } finally {
+    btn.disabled = false
+    btn.textContent = '📥 开始导出'
+  }
+}
+
+function downloadExcel() {
+  if (!exportResults.length) return
+
+  const data = exportResults.map((r, i) => ({
+    '序号': i + 1,
+    'UP主名称': r.name,
+    'UID': r.mid,
+    '关注时间': r.follow_time
+  }))
+
+  const ws = XLSX.utils.json_to_sheet(data)
+  ws['!cols'] = [{wch:6}, {wch:24}, {wch:14}, {wch:20}]
+
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, '关注列表')
+  XLSX.writeFile(wb, 'b站关注列表.xlsx')
+}
+
+// ══ 单个查询 ═══════════════════════════════════════════════
+
+async function startSingleQuery() {
+  const sessdata = document.getElementById('singleSessdata').value.trim()
+  const targetUid = document.getElementById('singleUid').value.trim()
+  const btn = document.getElementById('singleBtn')
+
+  if (!sessdata || !targetUid) {
+    setStatus('singleStatus', 'error', '请填写 SESSDATA 和 UID')
+    return
+  }
+
+  btn.disabled = true
+  btn.textContent = '⏳ 查询中...'
+  setStatus('singleStatus', 'info', '正在查询...')
+  document.getElementById('singleResult').innerHTML = ''
+
+  try {
+    // 查询用户信息
+    const infoResp = await api('GET',
+      `https://api.bilibili.com/x/space/acc/info?mid=${targetUid}`,
+      `SESSDATA=${sessdata}`
+    )
+
+    const name = (infoResp.code === 0 && infoResp.data) ? infoResp.data.name : '未知用户'
+
+    // 查询关注状态
+    const relResp = await api('GET',
+      `https://api.bilibili.com/x/space/acc/relation?mid=${targetUid}`,
+      `SESSDATA=${sessdata}`
+    )
+
+    let isFollowing = false
+    let followTime = ''
+
+    if (relResp.code === 0 && relResp.data && relResp.data.relation) {
+      isFollowing = relResp.data.relation.attribute !== 0
+      if (isFollowing && relResp.data.relation.mtime) {
+        followTime = new Date(relResp.data.relation.mtime * 1000).toLocaleString('zh-CN', { hour12: false })
+      }
+    }
+
+    if (isFollowing) {
+      document.getElementById('singleResult').innerHTML = `
+        <div class="result-card following">
+          <h3>${name}</h3>
+          <p><b>UID:</b> ${targetUid}</p>
+          <p style="color:#00A1D6;">✅ 已关注 · ${followTime}</p>
+        </div>
+      `
+      setStatus('singleStatus', 'success', `已关注 ${name}`)
+    } else {
+      document.getElementById('singleResult').innerHTML = `
+        <div class="result-card not-following">
+          <h3>${name}</h3>
+          <p><b>UID:</b> ${targetUid}</p>
+          <p style="color:#dc3545;">❌ 未关注</p>
+        </div>
+      `
+      setStatus('singleStatus', 'warning', `你尚未关注 ${name}`)
+    }
+  } catch(e) {
+    setStatus('singleStatus', 'error', '❌ ' + e.message)
+  } finally {
+    btn.disabled = false
+    btn.textContent = '🔍 查询'
+  }
+}
+</script>
+</body>
+</html>
