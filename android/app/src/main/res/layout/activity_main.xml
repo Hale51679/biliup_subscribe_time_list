@@ -12,9 +12,7 @@
         android:id="@+id/scrollView"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:fillViewport="true"
-        android:overScrollMode="never"
-        app:layout_constraintBottom_toTopOf="@id/logCard"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
@@ -210,61 +208,61 @@
 
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- 日志/结果 - 放入滚动区域内，限制最大高度 -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/logCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:minHeight="48dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="1dp"
+                app:contentPadding="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="200dp">
+
+                        <androidx.core.widget.NestedScrollView
+                            android:id="@+id/logScrollView"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent">
+
+                            <TextView
+                                android:id="@+id/tvLog"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="monospace"
+                                android:lineSpacingExtra="4dp"
+                                android:padding="12dp"
+                                android:text="等待操作..."
+                                android:textColor="#666666"
+                                android:textSize="12sp" />
+
+                        </androidx.core.widget.NestedScrollView>
+
+                    </FrameLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnCopy"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        android:text="📋 复制全部结果"
+                        android:textSize="13sp"
+                        app:cornerRadius="0dp" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
         </LinearLayout>
 
     </androidx.core.widget.NestedScrollView>
-
-    <!-- 底部日志区域 - 独立于外层滚动，固定在底部 -->
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/logCard"
-        android:layout_width="0dp"
-        android:layout_height="240dp"
-        android:layout_marginLeft="16dp"
-        android:layout_marginRight="16dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="16dp"
-        app:cardCornerRadius="12dp"
-        app:cardElevation="2dp"
-        app:contentPadding="0dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical">
-
-            <androidx.core.widget.NestedScrollView
-                android:id="@+id/logScrollView"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1">
-
-                <TextView
-                    android:id="@+id/tvLog"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="monospace"
-                    android:lineSpacingExtra="4dp"
-                    android:padding="12dp"
-                    android:text="等待操作..."
-                    android:textColor="#666666"
-                    android:textSize="12sp" />
-
-            </androidx.core.widget.NestedScrollView>
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnCopy"
-                style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="match_parent"
-                android:layout_height="40dp"
-                android:text="📋 复制全部结果"
-                android:textSize="13sp"
-                app:cornerRadius="0dp" />
-
-        </LinearLayout>
-
-    </com.google.android.material.card.MaterialCardView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
