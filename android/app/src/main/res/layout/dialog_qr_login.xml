@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <!-- 标题栏 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="📱 B站扫码登录"
+            android:textColor="#1F2A3A"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <ImageButton
+            android:id="@+id/btnClose"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="关闭"
+            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            android:tint="#8E9AAF" />
+
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="20dp"
+        android:text="请用 B站 App 扫描二维码"
+        android:textColor="#8E9AAF"
+        android:textSize="14sp" />
+
+    <!-- 二维码 -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="260dp"
+        android:gravity="center">
+
+        <ImageView
+            android:id="@+id/ivQrCode"
+            android:layout_width="240dp"
+            android:layout_height="240dp"
+            android:layout_gravity="center"
+            android:background="@drawable/qr_code_border"
+            android:padding="8dp"
+            android:scaleType="fitCenter" />
+
+        <!-- 刷新按钮，覆盖在二维码上 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnRefreshQr"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="bottom|end"
+            android:insetLeft="0dp"
+            android:insetTop="0dp"
+            android:insetRight="0dp"
+            android:insetBottom="0dp"
+            app:cornerRadius="24dp"
+            app:icon="@android:drawable/stat_notify_sync"
+            app:iconGravity="textStart"
+            app:iconSize="20dp"
+            app:iconTint="@android:color/white" />
+
+    </FrameLayout>
+
+    <!-- 状态 -->
+    <TextView
+        android:id="@+id/tvQrStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:gravity="center"
+        android:text="正在生成二维码..."
+        android:textColor="#00A1D6"
+        android:textSize="14sp" />
+
+    <!-- 倒计时 -->
+    <TextView
+        android:id="@+id/tvQrTimer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:gravity="center"
+        android:textColor="#8E9AAF"
+        android:textSize="12sp" />
+
+    <!-- 提示 -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:gravity="center"
+        android:lineSpacingExtra="4dp"
+        android:text="1. 打开手机上的 B站 App\n2. 点击首页右上角「扫一扫」\n3. 扫描二维码并确认登录"
+        android:textColor="#BBBBBB"
+        android:textSize="12sp" />
+
+    <!-- 手动输入按钮 -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnManualInput"
+        style="@style/Widget.Material3.Button.TextButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="手动输入 SESSDATA"
+        android:textColor="#8E9AAF" />
+
+</LinearLayout>
